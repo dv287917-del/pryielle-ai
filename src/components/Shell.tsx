@@ -472,7 +472,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
         </div>
       </div>
 
-      <nav className="dock relative grid shrink-0 grid-cols-5 gap-1 border-t border-paper/8 bg-ink/95 px-2 pt-2">
+      <nav className="dock dock-float relative grid shrink-0 grid-cols-5 gap-1">
         <span aria-hidden="true" className="nav-liquid" style={{ "--i": tabIndex } as CSSProperties}><i /></span>
         {TABS.map((t) => {
           const Icon = t.icon;

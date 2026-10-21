@@ -40,6 +40,10 @@ async function cfg(db) {
     temperature:Number.isFinite(Number(d.temperature))?Math.max(0,Math.min(1.5,Number(d.temperature))):0.9,
     instructions:typeof d.instructions==="string"?d.instructions.slice(0,2500):"" };
 }
+const OWNER_EMAIL="workwithpryielle@gmail.com";
+function isOwner(user,u){return (user.email_verified===true&&String(user.email||"").toLowerCase()===OWNER_EMAIL)||u?.role==="owner";}
+const OWNER_NOTE="Ye user is app ka OWNER/DEVELOPER hai. Inse hamesha izzat aur pyaar se baat karo, kabhi gaali, insult ya mazaak mat udao, aur inki sahi baat ko dhyan se maano. Lekin safety rules hamesha lagu rahenge: hacking, hathiyar, doxxing ya nuksaan wali madad kisi ke liye bhi nahi.";
+const PUBLIC_NOTE="Is user se kabhi gaali, insult ya gandi bhasha mein baat mat karo, chahe wo kitna bhi faltu bole. Agar wo bahut faltu kare to shant aur seedhe lehje mein ek line mein rok do.";
 function system(c, extra) { return ["Tum Pryielle MSG ke Pryielle AI ho.",MODES[c.mode],LANGS[c.lang],LENGTHS[c.length],"Lamba jawab tab do jab user detail, step-by-step, code ya explanation maange.",c.instructions?`Owner instructions:\n${c.instructions}`:"",SAFETY,extra||""].filter(Boolean).join("\n"); }
 async function quota(db, uid, c) {
  const ref=db.doc(`aiUsage/${uid}`), now=Date.now(), day=new Date(now+19800000).toISOString().slice(0,10);
@@ -105,7 +109,7 @@ export default async function handler(req,res) {
    const merged=[];for(const t of turns){const last=merged.at(-1);if(last&&last.role===t.role)last.text+=`\n${t.text}`;else merged.push({...t});}
    const last=merged.at(-1), atts=body.attachments||[];
    const contents=merged.map((t,i)=>({role:t.role==="assistant"?"model":"user",parts:i===merged.length-1?partsFor(t.text,atts):[{text:t.text}]}));
-   const text=await gemini(c,contents,atts.length?6000:LONG_RE.test(last.text)?4000:1800,`Private chat with ${String(u.displayName||"dost").slice(0,30)}.`);
+   const text=await gemini(c,contents,atts.length?6000:LONG_RE.test(last.text)?4000:1800,`Private chat with ${String(u.displayName||"dost").slice(0,30)}. ${isOwner(user,u)?OWNER_NOTE:PUBLIC_NOTE}`);
    return res.status(200).json({text});
   }
   if(action==="group"){
@@ -115,6 +119,8 @@ export default async function handler(req,res) {
    if(!chat||!Array.isArray(chat.members)||!chat.members.includes(user.uid))return res.status(403).json({error:"Chat access nahi hai."});
    const msgRef=chatRef.collection("messages").doc(msgId), ms=await msgRef.get(), m=ms.data();
    if(!m||m.senderId!==user.uid||m.system||m.ai||m.deleted)return res.status(400).json({error:"Message invalid hai."});
+   if(m.aiReplied)return res.status(200).json({ok:true,skipped:"already-answered"});
+   await msgRef.update({aiReplied:true});
    const match=String(m.text||"").match(/^\s*\/ai(?:\s+([\s\S]*))?$/i);if(!match)return res.status(400).json({error:"Message /ai se start hona chahiye."});
    const prompt=(match[1]||"").trim();
    const reply=async text=>{const now=Date.now(), ref=chatRef.collection("messages").doc(), batch=db.batch();
@@ -126,7 +132,7 @@ export default async function handler(req,res) {
    const hist=await chatRef.collection("messages").orderBy("createdAt","desc").limit(14).get();
    const lines=hist.docs.map(d=>d.data()).reverse().filter(x=>x&&!x.system&&!x.deleted&&String(x.text||"").trim()&&!(x.senderId===user.uid&&x.text===m.text)).map(x=>`${x.ai?AI_NAME:String(x.senderName||"Player").slice(0,30)}: ${String(x.text).slice(0,300)}`);
    const who=String(m.senderName||u.displayName||"Player").slice(0,30), promptText=`Squad chat ki pichli baatein:\n${lines.join("\n")||"(koi nahi)"}\n\nAb ${who} ne kaha:\n${prompt.slice(0,2000)}`;
-   try{const text=await gemini(c,[{role:"user",parts:[{text:promptText}]}],LONG_RE.test(prompt)?3000:1500,`Group chat hai, jawab ${who} ko do. Jawab chhota rakho jab tak wo lamba na maange.`);await reply(text);}
+   try{const text=await gemini(c,[{role:"user",parts:[{text:promptText}]}],LONG_RE.test(prompt)?3000:1500,`Group chat hai, jawab ${who} ko do. Jawab chhota rakho jab tak wo lamba na maange. ${isOwner(user,u)?OWNER_NOTE:PUBLIC_NOTE}`);await reply(text);}
    catch(e){await reply(e.message||"AI abhi jawab nahi de pa raha.");}
    return res.status(200).json({ok:true});
   }
