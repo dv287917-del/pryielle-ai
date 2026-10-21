@@ -5,7 +5,8 @@ import { AlarmHost } from "./Emergency";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { PushNotifications } from "@capacitor/push-notifications";
 import clsx from "clsx";
-import { BellOff, Bell, Camera, Check, ChevronDown, Home, Lock, Newspaper, Pin, Plus, Search, Send, ShieldCheck, SquarePen, Users, X } from "lucide-react";
+import { BellOff, Bell, Camera, Check, ChevronDown, Home, Lock, Newspaper, Pin, Plus, Search, Send, ShieldCheck, SquarePen, SquarePlay, Users, X } from "lucide-react";
+import appLogo from "../assets/brand/logo.png";
 import { acceptChat, declineChat, getUser, heartbeat, openDm, saveToken, setStatus, watchChats } from "../lib/data";
 import { getStories, watchNews } from "../lib/extra";
 import { useNotes, NoteEditor, NoteViewer, NotesRow, type NoteTile } from "./Notes";
@@ -35,7 +36,7 @@ const AdminPanel = lazy(() => import("./Admin").then((m) => ({ default: m.AdminP
 
 const TABS = [
   { id: "home" as const, icon: Home, label: "Home" },
-  { id: "squads" as const, icon: Users, label: "Squads" },
+  { id: "squads" as const, icon: SquarePlay, label: "Squads" },
   { id: "chats" as const, icon: Send, label: "Chats" },
   { id: "find" as const, icon: Search, label: "Find" },
   { id: "me" as const, icon: Home, label: "Me" },
@@ -480,7 +481,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
           return (
             <button key={t.id} type="button" aria-label={t.label} onClick={() => setTab(t.id)} className={clsx("tap relative flex h-12 items-center justify-center rounded-full transition-colors duration-200", on ? "nav-on text-paper" : "text-paper/80")}>
               {t.id === "me" ? (
-                <span className={clsx("relative rounded-full", on && "ring-2 ring-paper")}><Avatar src={me.avatar} name={me.displayName} size="xs" /></span>
+                <img src={appLogo} alt="" draggable={false} className={clsx("size-7 rounded-full object-cover transition-transform duration-200", on && "scale-105 ring-2 ring-paper")} />
               ) : (
                 <Icon className={clsx("size-7 transition-transform duration-200", on && "scale-105")} strokeWidth={on ? 2.4 : 1.8} />
               )}
