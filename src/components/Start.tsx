@@ -14,7 +14,8 @@ export function Start({ me, onStart }: { me: UserDoc; onStart: () => void }) {
     setGoing(true);
     buzz();
     sfx.playFile(smileUrl);
-    window.setTimeout(onStart, 650);
+    // animation pehle shuru ho, phir bhaari screen (Shell) mount ho: isse "atakna" kam lagta hai
+    window.requestAnimationFrame(() => window.setTimeout(onStart, 540));
   }
 
   return (
