@@ -135,6 +135,7 @@ export function GroupSheet({ mode, me, onClose, onOpen, onLeft }: { mode: string
           {busy ? "CREATING…" : "CREATE SQUAD"}
         </button>
       ) : (
+        <>
         <button type="button" disabled={!iAmAdmin || !title.trim()} onClick={() => void renameGroup(mode, title).catch((e) => setError(errorText(e)))} className="glass tap h-11 w-full rounded-2xl font-display font-bold tracking-wide disabled:opacity-40">
           RENAME
         </button>
@@ -157,6 +158,7 @@ export function GroupSheet({ mode, me, onClose, onOpen, onLeft }: { mode: string
             {chat?.logo ? <button type="button" className="tap text-xs text-rose" onClick={() => void setGroupLogo(chat.id, null)}>Clear</button> : null}
           </div>
         ) : null}
+        </>
       )}
 
       {!creating && link ? (
