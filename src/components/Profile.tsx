@@ -25,7 +25,9 @@ function Top({ u, note, stats, onAvatar, plus, live }: { u: UserDoc; note: NoteD
       <div className={clsx("flex items-center gap-5 px-4", note ? "pt-[5.4rem]" : "pt-[4.25rem]")}>
         <div className="relative shrink-0">
           <div className="absolute bottom-[calc(100%-1.1rem)] left-0 z-10 w-max"><NoteBubble note={note} /></div>
-          <button type="button" className="tap block rounded-full" onClick={onAvatar} aria-label="Avatar"><Avatar src={u.avatar} name={u.displayName} size="xl" live={live} /></button>
+          <div className={u.pro ? "nitro-wrap" : undefined}>
+            <button type="button" className="tap block rounded-full" onClick={onAvatar} aria-label="Avatar"><Avatar src={u.avatar} name={u.displayName} size="xl" live={live} /></button>
+          </div>
           {plus ? <span className="absolute right-0 bottom-0 grid size-6 place-items-center rounded-full bg-paper text-ink ring-2 ring-ink"><Plus className="size-4" strokeWidth={3} /></span> : null}
         </div>
         <div className="grid min-w-0 flex-1 grid-cols-3 gap-1">{stats.map((s) => <Stat key={s.l} {...s} />)}</div>

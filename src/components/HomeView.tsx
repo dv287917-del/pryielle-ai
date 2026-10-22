@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import clsx from "clsx";
-import { Check, ChevronRight, Copy, KeyRound, Lock, Megaphone, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { Check, ChevronRight, Copy, KeyRound, Lock, Megaphone, Search, ShieldCheck, Sparkles, SquarePlay, Users } from "lucide-react";
 import { STATUS_META, type Presence, type UserDoc } from "../lib/types";
 import { Avatar, Badges } from "./ui";
 
@@ -65,7 +65,7 @@ export function HomeView(p: {
   me: UserDoc; isAdmin: boolean; banner: string | null; maintenance: boolean;
   chatCount: number; unread: number; squadCount: number;
   stories: ReactNode; requestCount: number; requests: ReactNode; floatBtn: ReactNode;
-  onTab: (t: Go) => void; onNewSquad: () => void; onJoin: () => void; onSecret: () => void; onAi: () => void; onAdmin: () => void; onStatus: (s: Presence) => void;
+  onTab: (t: Go) => void; onNewSquad: () => void; onJoin: () => void; onSecret: () => void; onAi: () => void; onAdmin: () => void; onYoutube: () => void; onStatus: (s: Presence) => void;
 }) {
   const { me } = p;
   const keys = Object.keys(STATUS_META) as Presence[];
@@ -157,6 +157,7 @@ export function HomeView(p: {
         </div>
         <ListRow icon={<Sparkles className="size-4" />} label="Pryielle AI" hint="Photo, file, voice" tone="text-aqua" onClick={p.onAi} />
         <ListRow icon={<Lock className="size-4" />} label="Secret" tone="text-rose" onClick={p.onSecret} />
+      <ListRow icon={<SquarePlay className="size-4" />} label="YouTube" hint="Long + Shorts" onClick={p.onYoutube} />
         {p.isAdmin ? <ListRow icon={<ShieldCheck className="size-4" />} label="Admin panel" hint={p.maintenance ? "Maintenance ON" : undefined} tone="text-hot" onClick={p.onAdmin} /> : null}
         {p.floatBtn}
       </section>

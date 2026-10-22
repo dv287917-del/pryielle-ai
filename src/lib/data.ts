@@ -9,6 +9,7 @@ import type { ChatDoc, LastMsg, Msg, Presence, UserDoc } from "./types";
 import { auditOriginal, scanMessage } from "./moderation";
 import { auth } from "../firebase";
 import { AI_API_URL } from "./aiUrl";
+import { AI_UID } from "./types";
 
 /* ---------- helpers ---------- */
 export const cleanUsername = (raw: string) => {
@@ -34,7 +35,7 @@ const userDefaults = (d: Partial<UserDoc>): UserDoc => ({
 });
 
 export const chatDefaults = (id: string, d: Partial<ChatDoc>): ChatDoc => ({
-  id, kind: "dm", members: [], admins: [], title: "", createdBy: "", createdAt: 0, lastMessage: null, lastAt: 0,
+  id, kind: "dm", members: [], admins: [], title: "", logo: null, createdBy: "", createdAt: 0, lastMessage: null, lastAt: 0,
   reads: {}, unread: {}, typing: {}, accepted: true, requestFrom: null, declined: false, inviteCode: null,
   disappearHours: 0, ...d,
 });
@@ -196,7 +197,7 @@ export async function createGroup(me: UserDoc, title: string, publicIds: string[
   const ref = doc(collection(db, "chats"));
   const invite = code(8);
   await setDoc(ref, chatDefaults(ref.id, {
-    kind: "group", title: name, members: [...uids], admins: [me.uid], createdBy: me.uid, createdAt: Date.now(),
+    kind: "group", title: name, logo: null, members: [...uids], admins: [me.uid], createdBy: me.uid, createdAt: Date.now(),
     lastAt: Date.now(), inviteCode: invite,
   }));
   await setDoc(doc(db, "invites", invite), { chatId: ref.id });
@@ -217,6 +218,7 @@ export async function joinByCode(me: UserDoc, raw: string): Promise<string> {
 }
 
 export const renameGroup = (id: string, title: string) => updateDoc(doc(db, "chats", id), { title: title.trim().slice(0, 32) });
+export const setGroupLogo = (id: string, logo: string | null) => updateDoc(doc(db, "chats", id), { logo });
 export const addMember = (id: string, uid: string) => updateDoc(doc(db, "chats", id), { members: arrayUnion(uid) });
 export const removeMember = (id: string, uid: string) => updateDoc(doc(db, "chats", id), { members: arrayRemove(uid), admins: arrayRemove(uid) });
 export const setAdmin = (id: string, uid: string, on: boolean) => updateDoc(doc(db, "chats", id), { admins: on ? arrayUnion(uid) : arrayRemove(uid) });
@@ -285,13 +287,23 @@ export async function sendMessage(chat: ChatDoc, me: UserDoc, out: Outgoing) {
   batch.update(doc(db, "chats", chat.id), patch);
   await batch.commit();
   scanMessage(chat.id, { id: mRef.id, senderId: me.uid, senderName: me.displayName, text, createdAt: now }, me.uid);
-  // Group /ai replies are handled by the Vercel API, not a Firebase AI Function.
+  // Group /ai: show AI typing immediately, then hit Vercel API (server writes the reply msg).
   if (/^\s*\/ai(?:\s+|$)/i.test(text) && chat.kind === "group" && auth.currentUser) {
+    void updateDoc(doc(db, "chats", chat.id), { [`typing.${AI_UID}`]: Date.now() }).catch(() => undefined);
     void auth.currentUser.getIdToken().then((token) => fetch(AI_API_URL, {
       method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ action: "group", chatId: chat.id, msgId: mRef.id }),
-    })).then(async (r) => { if (!r.ok) console.warn("Group AI request failed", r.status, await r.text().catch(() => "")); })
-      .catch((e) => console.warn("Group AI request failed", e));
+    }).then(async (r) => {
+      if (!r.ok) {
+        const errText = await r.text().catch(() => "");
+        console.warn("Group AI request failed", r.status, errText);
+        // clear typing + leave a soft system note so user is not left hanging
+        void updateDoc(doc(db, "chats", chat.id), { [`typing.${AI_UID}`]: 0 }).catch(() => undefined);
+      }
+    }).catch((e) => {
+      console.warn("Group AI request failed", e);
+      void updateDoc(doc(db, "chats", chat.id), { [`typing.${AI_UID}`]: 0 }).catch(() => undefined);
+    }));
   }
 }
 

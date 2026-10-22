@@ -219,6 +219,7 @@ export function AdminPanel({ config, onClose }: { config: AppConfig; onClose: ()
   const [reports, setReports] = useState<Report[]>([]);
   const [msg, setMsg] = useState(config.message);
   const [banner, setBanner] = useState(config.banner);
+  const [ytKey, setYtKey] = useState(config.youtubeApiKey || "");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const requests = useRequests();
@@ -279,6 +280,11 @@ export function AdminPanel({ config, onClose }: { config: AppConfig; onClose: ()
           <label className="block"><span className="mb-2 block text-xs font-semibold tracking-[0.2em] text-paper/55">BANNER TEXT</span>
             <textarea className="min-h-24 w-full rounded-2xl border border-paper/12 bg-paper/5 p-4 outline-none focus:border-rose/70" maxLength={160} value={banner} onChange={(e) => setBanner(e.target.value)} placeholder="Jaise: Naya update aa gaya! 🔥" /></label>
           <button type="button" className="btn-hot tap h-12 w-full rounded-2xl font-display text-lg font-bold" onClick={() => void save({ ...config, banner })}>{saved ? "SAVED ✓" : "SAVE BANNER"}</button>
+          <label className="block space-y-1 pt-2">
+            <span className="text-xs font-semibold tracking-wider text-paper/50">YOUTUBE DATA API KEY</span>
+            <input className="h-12 w-full rounded-2xl border border-paper/12 bg-paper/5 px-4 outline-none focus:border-rose/70" value={ytKey} onChange={(e) => setYtKey(e.target.value)} placeholder="AIza… (search ke liye)" />
+          </label>
+          <button type="button" className="glass tap h-11 w-full rounded-2xl font-semibold" onClick={() => void save({ ...config, youtubeApiKey: ytKey.trim() })}>SAVE YT KEY</button>
         </div>
       ) : null}
 

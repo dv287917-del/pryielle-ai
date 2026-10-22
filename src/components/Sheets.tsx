@@ -3,10 +3,10 @@ import { Capacitor } from "@capacitor/core";
 import { Share } from "@capacitor/share";
 import clsx from "clsx";
 import { Copy, Plus, Share2, Shield, Users, X } from "lucide-react";
-import { addMember, createGroup, joinByCode, removeMember, renameGroup, searchUsers, setAdmin, watchChat } from "../lib/data";
+import { addMember, createGroup, joinByCode, removeMember, renameGroup, searchUsers, setAdmin, setGroupLogo, watchChat } from "../lib/data";
+import { compressImage, errorText } from "../lib/util";
 import { useUser } from "../lib/hooks";
 import type { ChatDoc, UserDoc } from "../lib/types";
-import { errorText } from "../lib/util";
 import { Avatar, Field, fieldClass } from "./ui";
 
 function useSearch(term: string, me: string) {
@@ -138,6 +138,25 @@ export function GroupSheet({ mode, me, onClose, onOpen, onLeft }: { mode: string
         <button type="button" disabled={!iAmAdmin || !title.trim()} onClick={() => void renameGroup(mode, title).catch((e) => setError(errorText(e)))} className="glass tap h-11 w-full rounded-2xl font-display font-bold tracking-wide disabled:opacity-40">
           RENAME
         </button>
+        {iAmAdmin ? (
+          <div className="glass flex items-center gap-3 rounded-2xl p-3">
+            {chat?.logo ? <img src={chat.logo} alt="" className="size-12 rounded-xl object-cover" /> : <div className="grid size-12 place-items-center rounded-xl bg-paper/10 text-xs text-paper/40">Logo</div>}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Squad logo</p>
+              <p className="text-xs text-paper/50">Custom image · sabko dikhega</p>
+            </div>
+            <label className="tap rounded-xl bg-paper/10 px-3 py-2 text-xs font-bold">
+              Change
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f || !chat) return;
+                void compressImage(f, 256, 0.7, 80_000).then((url) => setGroupLogo(chat.id, url)).catch((err) => setError(errorText(err)));
+              }} />
+            </label>
+            {chat?.logo ? <button type="button" className="tap text-xs text-rose" onClick={() => void setGroupLogo(chat.id, null)}>Clear</button> : null}
+          </div>
+        ) : null}
       )}
 
       {!creating && link ? (

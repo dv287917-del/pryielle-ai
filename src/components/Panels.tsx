@@ -38,15 +38,25 @@ export function NewsSheet({ me, isAdmin, news, onClose }: { me: UserDoc; isAdmin
         </div>
       ) : null}
       {news.length === 0 ? <div className="pop-in mt-10 text-center"><p className="float text-5xl">📰</p><p className="mt-3 text-sm text-paper/55">Abhi koi news nahi.</p></div> : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {news.map((n, i) => (
-            <li key={n.id} className="glass fade-up rounded-2xl p-4" style={{ ["--d" as string]: Math.min(i, 8) * 50 }}>
+            <li
+              key={n.id}
+              className="fade-up relative overflow-hidden rounded-[28px] p-5"
+              style={{
+                ["--d" as string]: Math.min(i, 8) * 50,
+                background: "linear-gradient(165deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%)",
+                boxShadow: "0 20px 50px -24px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12)",
+              }}
+            >
               <div className="flex items-start justify-between gap-2">
-                <p className="font-display text-xl leading-tight font-bold">{n.title}</p>
-                {isAdmin ? <button type="button" className="tap p-1 text-rose" aria-label="Delete news" onClick={() => void deleteNews(n.id)}><Trash2 className="size-4" /></button> : null}
+                <p className="font-display text-[1.55rem] leading-[1.15] font-bold tracking-tight text-paper">{n.title}</p>
+                {isAdmin ? <button type="button" className="tap shrink-0 rounded-full bg-rose/15 p-2 text-rose" aria-label="Delete news" onClick={() => void deleteNews(n.id)}><Trash2 className="size-4" /></button> : null}
               </div>
-              <p className="mt-1 text-sm whitespace-pre-wrap text-paper/80">{n.text}</p>
-              <p className="mt-2 text-xs text-paper/40">{n.by} · {relTime(n.at)}</p>
+              <div className="mt-3 rounded-[22px] px-4 py-3.5" style={{ background: "rgba(0,0,0,0.22)" }}>
+                <p className="text-[0.95rem] leading-relaxed whitespace-pre-wrap text-paper/85">{n.text}</p>
+              </div>
+              <p className="mt-3 text-xs text-paper/40">{n.by} · {relTime(n.at)}</p>
             </li>
           ))}
         </ul>

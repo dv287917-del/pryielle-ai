@@ -51,6 +51,7 @@ export type ChatDoc = {
   members: string[];
   admins: string[];
   title: string;
+  logo: string | null;
   createdBy: string;
   createdAt: number;
   lastMessage: LastMsg | null;
@@ -97,7 +98,7 @@ export const STATUS_META: Record<Presence, { label: string; emoji: string }> = {
 
 export type NewsItem = { id: string; title: string; text: string; at: number; by: string };
 export type AppConfig = {
-  maintenance: boolean; message: string; banner: string; bannerOn: boolean;
+  maintenance: boolean; message: string; banner: string; bannerOn: boolean; youtubeApiKey: string;
   updateVersion: string; updateUrl: string; updateNotes: string; updateForce: boolean;
   /** "Mega Update Here" style heading shown on the update popup */
   updateTitle: string;
@@ -109,7 +110,7 @@ export type AppConfig = {
   oneAccountPerDevice: boolean;
 };
 export const EMPTY_CONFIG: AppConfig = {
-  maintenance: false, message: "", banner: "", bannerOn: false, updateVersion: "", updateUrl: "", updateNotes: "", updateForce: false,
+  maintenance: false, message: "", banner: "", bannerOn: false, youtubeApiKey: "", updateVersion: "", updateUrl: "", updateNotes: "", updateForce: false,
   updateTitle: "", updateParts: 0, updateSize: 0, blockVpn: true, autoDetect: true, oneAccountPerDevice: true,
 };
 

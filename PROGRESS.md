@@ -150,3 +150,21 @@ Notes (v2.10.0, purana): model/Claude wali config ab use nahi hoti.
 13. News near notification: title + body high-quality nest card (frog SS)
 
 Existing features (HARD alarm, 1711 protect, etc.) — do not break.
+
+---
+# v2.12.1 Batch B
+- [x] `/ai` : AI typing indicator turant (`typing.ai_pryielle`), fail pe clear + warn
+- [x] News cards: frog-style nest (big title, inner body panel, soft shadow, no hard outline)
+- [x] Auth login: sky-blue glass panel (SHRUHH structure, Google auth same)
+- [x] Group custom logo: ChatDoc.logo, setGroupLogo, Squad sheet Change/Clear
+- Version 2.12.1
+Still open from mega list: YouTube in-app, floating nav, Nitro, banner voice, Admin-AI builder, Pro group theme broadcast, more AI polish
+
+---
+# v2.12.2 Batch C+D
+- [x] Floating dock: more transparent glass pill (screenshot-style)
+- [x] YouTube in-app shell: Home → YouTube, search (API key) + link/ID play, Shorts/long embed
+- [x] Admin → Banner tab: YouTube Data API key save (`config.youtubeApiKey`)
+- [x] Nitro-style animated ring on Pro profile avatars (low-perf safe)
+- Version 2.12.2
+Still open: banner voice notes, Admin-AI feature builder, Pro group theme broadcast, deeper AI polish
