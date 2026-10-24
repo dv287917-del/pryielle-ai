@@ -23,6 +23,8 @@ import { FloatBtn } from "./FloatBtn";
 import { HomeView } from "./HomeView";
 import { TubeIcon } from "./Brand";
 import { YoutubeView } from "./YoutubeView";
+import { PackHost } from "./PackHost";
+import { watchLivePacks, type Pack } from "../lib/packs";
 import { CloseFriendsSheet, NewsSheet, ProSheet } from "./Panels";
 import { SpamGuard } from "./SpamGuard";
 import { StoriesStrip, StoryCreator, StoryViewer, visibleItems, type StoryOwner } from "./Stories";
@@ -160,6 +162,9 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
   const [news, setNews] = useState<NewsItem[]>([]);
   const [newsOpen, setNewsOpen] = useState(false);
   const [tubeOpen, setTubeOpen] = useState(false);
+  const [packs, setPacks] = useState<Pack[]>([]);
+  const [packOpen, setPackOpen] = useState<string | null>(null);
+  useEffect(() => watchLivePacks(setPacks), []);
   const [adminOpen, setAdminOpen] = useState(false);
   const [proOpen, setProOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
@@ -407,7 +412,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
             stories={<StoriesStrip me={me} owners={storyOwners} onOpen={(i) => setStoryAt(i)} onCreate={() => setCreatorOpen(true)} />}
             requestCount={requests.length} requests={<ul className="space-y-2">{requests.map((r) => <RequestRow key={r.id} chat={r} me={me} onOpen={openChat} />)}</ul>}
             floatBtn={<FloatBtn />}
-            onTab={(t) => setTab(t)} onNewSquad={() => setGroupFor("new")} onJoin={() => setJoinOpen(true)} onSecret={() => setSecretOpen(true)} onAi={() => setAiOpen(true)} onYoutube={() => setTubeOpen(true)} onAdmin={() => setAdminOpen(true)} onStatus={(st) => void setStatus(me.uid, st)} />
+            onTab={(t) => setTab(t)} onNewSquad={() => setGroupFor("new")} onJoin={() => setJoinOpen(true)} onSecret={() => setSecretOpen(true)} onAi={() => setAiOpen(true)} onYoutube={() => setTubeOpen(true)} packs={packs} onPack={setPackOpen} onAdmin={() => setAdminOpen(true)} onStatus={(st) => void setStatus(me.uid, st)} />
         ) : null}
 
         {tab === "chats" ? (
@@ -504,7 +509,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
         )}
       </div>
       {newsOpen ? <NewsSheet me={me} isAdmin={isAdmin} news={news} onClose={() => setNewsOpen(false)} /> : null}
-      {adminOpen && isAdmin ? <Suspense fallback={null}><AdminPanel config={config} onClose={() => setAdminOpen(false)} /></Suspense> : null}
+      {adminOpen && isAdmin ? <Suspense fallback={null}><AdminPanel me={me} config={config} onClose={() => setAdminOpen(false)} /></Suspense> : null}
       {requestsOpen ? (
         <Frame title="Requests" onClose={() => setRequestsOpen(false)} z={50}>
           {requests.length === 0 ? <p className="pt-10 text-center text-paper/55">Koi request nahi.</p> : <ul className="space-y-2">{requests.map((r) => <RequestRow key={r.id} chat={r} me={me} onOpen={(id) => { setRequestsOpen(false); openChat(id); }} />)}</ul>}
@@ -521,6 +526,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
       ) : null}
       {noteFor === me.uid ? <NoteEditor me={me} current={notes[me.uid] ?? null} onClose={() => setNoteFor(null)} onChanged={() => setNoteTick((v) => v + 1)} /> : null}
       {noteFor && noteFor !== me.uid && contactUsers[noteFor] && notes[noteFor] ? <NoteViewer me={me} owner={contactUsers[noteFor]} note={notes[noteFor]} onClose={() => setNoteFor(null)} /> : null}
+      {packOpen && packs.find((x) => x.id === packOpen) ? <PackHost pack={packs.find((x) => x.id === packOpen)!} me={me} onClose={() => setPackOpen(null)} /> : null}
       {tubeOpen ? <YoutubeView apiKey={config.youtubeApiKey || ""} onClose={() => setTubeOpen(false)} /> : null}
       {proOpen ? <ProSheet me={me} onClose={() => setProOpen(false)} /> : null}
       {closeOpen ? <CloseFriendsSheet me={me} contacts={Object.values(contactUsers)} onClose={() => setCloseOpen(false)} /> : null}

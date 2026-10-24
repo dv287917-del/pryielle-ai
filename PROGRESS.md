@@ -168,3 +168,12 @@ Still open from mega list: YouTube in-app, floating nav, Nitro, banner voice, Ad
 - [x] Nitro-style animated ring on Pro profile avatars (low-perf safe)
 - Version 2.12.2
 Still open: banner voice notes, Admin-AI feature builder, Pro group theme broadcast, deeper AI polish
+
+---
+# v2.14.0 — Admin AI Builder + new loading screen
+- [x] Admin → 🛠 AI Builder: chat se feature/image/file banwao (photo, video-frames, PDF, text attach). Feature "Feature Pack" banta hai (sandboxed HTML mini-app).
+- [x] Draft (featureDrafts, admin-only) → Preview → "Publish karna hai?" confirm → featurePacks (LIVE, real-time sabke Home par, APK update nahi). Unpublish / Update live / Delete / Edit with AI.
+- [x] Backend `api/ai.js`: actions `build` (JSON pack+files+imagePrompt) and `image` (Gemini image model, `aiAdmin/main.imageModel` se badal sakte ho). Admin-only.
+- [x] firestore.rules: featureDrafts (admin) + featurePacks (read approved users, write admin) — **console mein rules publish karo**.
+- [x] New Boot loading screen (rose bloom, orbit dots, letter wave, % progress, low-perf safe).
+- Limit: Pack sirf local sandbox mein chalta hai; native Android / sabke beech shared data wale features ke liye app code update chahiye.

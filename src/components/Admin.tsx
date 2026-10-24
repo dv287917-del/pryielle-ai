@@ -19,9 +19,10 @@ import { releaseDevice } from "../lib/security";
 import { FollowEditor } from "./FollowUI";
 import { EmergencyTab } from "./Emergency";
 import { AiAdminTab } from "./AiAdmin";
+import { AiBuilderTab } from "./AiBuilder";
 import { auth } from "../firebase";
 
-type Tab = "stats" | "ai" | "emergency" | "requests" | "alerts" | "chats" | "security" | "update" | "maint" | "banner" | "shortcuts" | "gifs" | "users" | "reports";
+type Tab = "stats" | "ai" | "builder" | "emergency" | "requests" | "alerts" | "chats" | "security" | "update" | "maint" | "banner" | "shortcuts" | "gifs" | "users" | "reports";
 
 function UserRow({ u, onChanged }: { u: UserDoc; onChanged: (n: UserDoc) => void }) {
   const [busy, setBusy] = useState(false);
@@ -211,7 +212,7 @@ function ShortcutManager() {
   );
 }
 
-export function AdminPanel({ config, onClose }: { config: AppConfig; onClose: () => void }) {
+export function AdminPanel({ me, config, onClose }: { me: UserDoc; config: AppConfig; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>("stats");
   const [stats, setStats] = useState<{ total: number; banned: number; online: number; pro: number; verified: number } | null>(null);
   const [users, setUsers] = useState<UserDoc[]>([]);
@@ -242,7 +243,7 @@ export function AdminPanel({ config, onClose }: { config: AppConfig; onClose: ()
   }, [term]);
 
   const save = (next: AppConfig) => setConfig(next).then(() => { setSaved(true); window.setTimeout(() => setSaved(false), 1500); }).catch((e) => setError(errorText(e)));
-  const TABS: [Tab, string][] = [["stats", "Dashboard"], ["ai", "🤖 AI"], ["emergency", "🚨 Emergency"], ["requests", `Requests${pendingCount ? ` (${pendingCount})` : ""}`], ["alerts", `Alerts${unseen ? ` (${unseen})` : ""}`], ["chats", "Chats"], ["security", "Security"], ["update", "Update"], ["maint", "Maintenance"], ["banner", "Banner"], ["shortcuts", "Shortcuts"], ["gifs", "GIFs"], ["users", "Users"], ["reports", `Reports${reports.length ? ` (${reports.length})` : ""}`]];
+  const TABS: [Tab, string][] = [["stats", "Dashboard"], ["builder", "🛠 AI Builder"], ["ai", "🤖 AI"], ["emergency", "🚨 Emergency"], ["requests", `Requests${pendingCount ? ` (${pendingCount})` : ""}`], ["alerts", `Alerts${unseen ? ` (${unseen})` : ""}`], ["chats", "Chats"], ["security", "Security"], ["update", "Update"], ["maint", "Maintenance"], ["banner", "Banner"], ["shortcuts", "Shortcuts"], ["gifs", "GIFs"], ["users", "Users"], ["reports", `Reports${reports.length ? ` (${reports.length})` : ""}`]];
 
   return (
     <Frame title="Admin Panel" onClose={onClose} z={60}>
@@ -289,6 +290,8 @@ export function AdminPanel({ config, onClose }: { config: AppConfig; onClose: ()
       ) : null}
 
       {tab === "ai" ? <AiAdminTab /> : null}
+
+      {tab === "builder" ? <AiBuilderTab me={me} /> : null}
 
       {tab === "emergency" ? <EmergencyTab adminName={auth.currentUser?.displayName ?? "Admin"} /> : null}
 

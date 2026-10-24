@@ -44,6 +44,15 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // v2.14: AI Builder. Drafts sirf admin; live packs sabhi approved users padh sakte hain, likh sirf admin sakta hai.
+    match /featureDrafts/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /featurePacks/{id} {
+      allow read: if isAdmin() || (signedIn() && ok());
+      allow write: if isAdmin();
+    }
+
     match /gifs/{id} {
       allow read: if signedIn();
       allow create, update, delete: if isAdmin();
