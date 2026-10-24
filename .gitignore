@@ -1,5 +1,0 @@
-node_modules
-dist
-android
-src/firebase-config.generated.ts
-.DS_Store
