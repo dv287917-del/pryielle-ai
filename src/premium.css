@@ -1,0 +1,93 @@
+/* =====================================================================
+   v2.13.0 premium layer: sapphire sky screens (boot / login / start),
+   floating glass dock, news cards. Sab kuch low-end mode me halka.
+   ===================================================================== */
+.ir-sky {
+  background:
+    radial-gradient(90% 50% at 50% 36%, rgb(140 190 255 / 0.55) 0%, rgb(140 190 255 / 0) 70%),
+    linear-gradient(180deg, #051a96 0%, #0a38d2 28%, #1a62ff 50%, #78aaff 72%, #e6f0ff 90%, #fff 100%);
+}
+.ir-glow {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgb(170 205 255 / 0.95) 0%, rgb(120 170 255 / 0) 68%);
+  filter: blur(26px);
+  animation: ir-pulse 4.2s ease-in-out infinite;
+}
+@keyframes ir-pulse { 0%, 100% { transform: scale(0.9); opacity: 0.65; } 50% { transform: scale(1.1); opacity: 1; } }
+.ir-float { animation: ir-float 5.5s ease-in-out infinite; }
+@keyframes ir-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.ir-spin { animation: ir-spin 60s linear infinite; }
+@keyframes ir-spin { to { transform: rotate(360deg); } }
+.ir-rise { animation: ir-rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--d, 0) * 1ms); }
+@keyframes ir-rise { from { opacity: 0; transform: translateY(22px) scale(0.97); } to { opacity: 1; transform: none; } }
+.ir-bloom { animation: ir-bloom 1100ms cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+@keyframes ir-bloom { from { opacity: 0; transform: scale(0.55) rotate(-40deg); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }
+.ir-shine {
+  background: linear-gradient(100deg, #fff 35%, #b9d4ff 48%, #fff 62%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: ir-sheen 3.4s linear infinite;
+}
+@keyframes ir-sheen { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+.ir-bar { position: relative; height: 4px; width: 168px; overflow: hidden; border-radius: 999px; background: rgb(255 255 255 / 0.25); }
+.ir-bar > i { position: absolute; top: 0; bottom: 0; left: 0; width: 46%; border-radius: 999px; background: linear-gradient(90deg, rgb(255 255 255 / 0), #fff, rgb(255 255 255 / 0)); animation: ir-bar 1.3s ease-in-out infinite; }
+@keyframes ir-bar { from { transform: translateX(-100%); } to { transform: translateX(240%); } }
+.ir-sparkle { position: absolute; color: #fff; opacity: 0; animation: ir-twinkle 2.6s ease-in-out infinite; animation-delay: calc(var(--d, 0) * 1ms); filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.9)); }
+@keyframes ir-twinkle { 0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); } 50% { opacity: 1; transform: scale(1) rotate(45deg); } }
+.ir-enter { animation: ir-enter 560ms cubic-bezier(0.5, 0, 0.2, 1) both; }
+@keyframes ir-enter { to { opacity: 0; transform: scale(1.12); filter: blur(6px); } }
+.ir-btn-dark { background: #0b0f1d; color: #fff; box-shadow: 0 16px 36px -12px rgb(10 50 220 / 0.65), inset 0 1px 0 rgb(255 255 255 / 0.14); }
+.ir-btn-soft { background: #eef1f7; color: #0b0f1d; }
+.ir-btn-white { background: #fff; color: #0a2fb8; box-shadow: 0 0 0 6px rgb(255 255 255 / 0.18), 0 18px 44px -10px rgb(255 255 255 / 0.65); animation: ir-halo 2.6s ease-in-out infinite; }
+@keyframes ir-halo { 0%, 100% { box-shadow: 0 0 0 4px rgb(255 255 255 / 0.16), 0 14px 40px -12px rgb(255 255 255 / 0.5); } 50% { box-shadow: 0 0 0 11px rgb(255 255 255 / 0.05), 0 18px 54px -8px rgb(255 255 255 / 0.9); } }
+
+/* ---------- floating glass dock (Instagram style: pill + round profile) ---------- */
+.ir-dock {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  padding: 0 1rem max(0.85rem, env(safe-area-inset-bottom));
+  pointer-events: none;
+  animation: dock-rise 780ms var(--spring) both;
+}
+.ir-dock > * { pointer-events: auto; }
+.ir-glass {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.05) 55%, rgb(255 255 255 / 0.1)), rgb(24 24 30 / 0.34);
+  border: 1px solid rgb(255 255 255 / 0.17);
+  backdrop-filter: blur(24px) saturate(1.7);
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  box-shadow: 0 16px 38px -14px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.24);
+}
+.ir-pill { position: relative; display: flex; padding: 0.3rem; border-radius: 999px; }
+.ir-pill button { position: relative; z-index: 1; display: grid; place-items: center; width: 3.45rem; height: 3rem; border-radius: 999px; color: rgb(255 255 255 / 0.72); transition: color 200ms ease-out, transform 320ms var(--spring); }
+.ir-pill button.on { color: #fff; }
+.ir-pill button:active { transform: scale(0.86); }
+.ir-pill button > svg { transition: scale 320ms var(--spring), filter 320ms; }
+.ir-pill button.on > svg { scale: 1.06; filter: drop-shadow(0 0 8px rgb(255 255 255 / 0.55)); }
+.ir-ind {
+  position: absolute; top: 0.3rem; left: 0.3rem; width: 3.45rem; height: 3rem; border-radius: 999px;
+  background: rgb(255 255 255 / 0.17); border: 1px solid rgb(255 255 255 / 0.15);
+  transform: translate3d(calc(var(--i, 0) * 3.45rem), 0, 0);
+  transition: transform 520ms var(--spring), opacity 220ms;
+}
+.ir-me { position: relative; display: grid; place-items: center; width: 3.7rem; height: 3.7rem; flex: none; border-radius: 50%; padding: 0.28rem; transition: transform 320ms var(--spring); }
+.ir-me:active { transform: scale(0.88); }
+.ir-me img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.ir-me.on { box-shadow: 0 0 0 2px #fff, 0 12px 30px -10px rgb(0 0 0 / 0.6); }
+:root[data-perf="low"] .ir-glass { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgb(26 26 32 / 0.82); }
+:root[data-perf="low"] .ir-dock { animation: none; }
+
+/* ---------- news (arch glass card) ---------- */
+.ir-arch { border-radius: 50% 50% 28px 28px / 112px 112px 28px 28px; }
+
+/* ---------- misc ---------- */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+:root[data-perf="low"] .ir-glow, :root[data-perf="low"] .ir-float, :root[data-perf="low"] .ir-spin,
+:root[data-perf="low"] .ir-shine, :root[data-perf="low"] .ir-sparkle, :root[data-perf="low"] .ir-btn-white { animation: none; }
+:root[data-perf="low"] .ir-glow { filter: none; opacity: 0.55; }
+:root[data-perf="low"] .ir-shine { color: #fff; background: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ir-glow, .ir-float, .ir-spin, .ir-shine, .ir-sparkle, .ir-bloom, .ir-rise, .ir-bar > i, .ir-btn-white { animation: none !important; }
+  .ir-sparkle { opacity: 0.8; }
+}
