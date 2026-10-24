@@ -21,6 +21,7 @@ import { GroupSheet, JoinSheet, SquadIcon, useSearch } from "./Sheets";
 import { Thread } from "./Thread";
 import { FloatBtn } from "./FloatBtn";
 import { HomeView } from "./HomeView";
+import { TubeIcon } from "./Brand";
 import { YoutubeView } from "./YoutubeView";
 import { CloseFriendsSheet, NewsSheet, ProSheet } from "./Panels";
 import { SpamGuard } from "./SpamGuard";
@@ -36,12 +37,13 @@ const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Setti
 const AdminPanel = lazy(() => import("./Admin").then((m) => ({ default: m.AdminPanel })));
 
 const TABS = [
-  { id: "home" as const, icon: Home, label: "Home" },
-  { id: "squads" as const, icon: SquarePlay, label: "Squads" },
-  { id: "chats" as const, icon: Send, label: "Chats" },
-  { id: "find" as const, icon: Search, label: "Find" },
-  { id: "me" as const, icon: Home, label: "Me" },
+  { id: "home" as const },
+  { id: "chats" as const },
+  { id: "find" as const },
+  { id: "squads" as const },
+  { id: "me" as const },
 ];
+const PILL = ["home", "tube", "chats", "find"] as const;
 
 function previewText(chat: ChatDoc, meUid: string): string {
   const l = chat.lastMessage;
@@ -398,7 +400,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
       ) : null}
 
       <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div key={tab} className="tab-flow" style={{ "--dir": tabDir } as CSSProperties}>
+        <div key={tab} className="tab-flow pb-24" style={{ "--dir": tabDir } as CSSProperties}>
         {tab === "home" ? (
           <HomeView me={me} isAdmin={isAdmin} banner={config.bannerOn && config.banner.trim() ? config.banner : null} maintenance={!!config.maintenance}
             chatCount={visibleChats.length} unread={unread} squadCount={squads.length}
@@ -475,23 +477,24 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
         </div>
       </div>
 
-      <nav className="dock dock-float relative grid shrink-0 grid-cols-5 gap-1">
-        <span aria-hidden="true" className="nav-liquid" style={{ "--i": tabIndex } as CSSProperties}><i /></span>
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const on = tab === t.id;
-          return (
-            <button key={t.id} type="button" aria-label={t.label} onClick={() => setTab(t.id)} className={clsx("tap relative flex h-12 items-center justify-center rounded-full transition-colors duration-200", on ? "nav-on text-paper" : "text-paper/80")}>
-              {t.id === "me" ? (
-                <img src={appLogo} alt="" draggable={false} className={clsx("size-7 rounded-full object-cover transition-transform duration-200", on && "scale-105 ring-2 ring-paper")} />
-              ) : (
-                <Icon className={clsx("size-7 transition-transform duration-200", on && "scale-105")} strokeWidth={on ? 2.4 : 1.8} />
-              )}
-              {t.id === "chats" && unread > 0 ? <span className="badge-pop absolute top-0.5 right-[24%] grid min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold text-white">{unread > 9 ? "9+" : unread}</span> : null}
-              {t.id === "home" && requests.length > 0 ? <span className="badge-pop absolute top-1.5 right-[30%] size-2.5 rounded-full bg-hot" /> : null}
-            </button>
-          );
-        })}
+      <nav className="dock-bar">
+        <div className="dock-pill relative grid grid-cols-4">
+          <span aria-hidden="true" className="dock-liquid" style={{ "--i": Math.max(0, PILL.indexOf(tab as never)), opacity: PILL.indexOf(tab as never) < 0 ? 0 : 1 } as CSSProperties}><i /></span>
+          {PILL.map((id) => {
+            const on = tab === id;
+            const label = id === "home" ? "Home" : id === "tube" ? "YouTube" : id === "chats" ? "Chats" : "Find";
+            return (
+              <button key={id} type="button" aria-label={label} onClick={() => (id === "tube" ? setTubeOpen(true) : setTab(id))} className={clsx("tap relative flex h-12 items-center justify-center rounded-full", on ? "nav-on text-paper" : "text-paper/85")}>
+                {id === "home" ? <Home className="size-[1.65rem]" strokeWidth={on ? 2.4 : 1.8} /> : id === "tube" ? <TubeIcon className="size-[1.7rem]" strokeWidth={on ? 2.2 : 1.7} /> : id === "chats" ? <Send className="size-[1.6rem]" strokeWidth={on ? 2.4 : 1.8} /> : <Search className="size-[1.65rem]" strokeWidth={on ? 2.4 : 1.8} />}
+                {id === "chats" && unread > 0 ? <span className="badge-pop absolute top-0.5 right-[22%] grid min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold text-white">{unread > 9 ? "9+" : unread}</span> : null}
+                {id === "home" && requests.length > 0 ? <span className="badge-pop absolute top-1.5 right-[28%] size-2.5 rounded-full bg-hot" /> : null}
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" aria-label="Me" onClick={() => setTab("me")} className={clsx("dock-pill dock-circle tap grid shrink-0 place-items-center", tab === "me" && "dock-circle-on")}>
+          <img src={appLogo} alt="" draggable={false} className="size-8 rounded-full object-cover" />
+        </button>
       </nav>
 
       </div>

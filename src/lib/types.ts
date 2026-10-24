@@ -96,7 +96,7 @@ export const STATUS_META: Record<Presence, { label: string; emoji: string }> = {
   squad: { label: "Need squad", emoji: "📣" },
 };
 
-export type NewsItem = { id: string; title: string; text: string; at: number; by: string };
+export type NewsItem = { id: string; title: string; text: string; at: number; by: string; lead?: string; cover?: string | null; byAvatar?: string | null };
 export type AppConfig = {
   maintenance: boolean; message: string; banner: string; bannerOn: boolean; youtubeApiKey: string;
   updateVersion: string; updateUrl: string; updateNotes: string; updateForce: boolean;

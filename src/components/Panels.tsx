@@ -1,11 +1,11 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
-import { Ban, Check, Copy, Crown, Lock, MessageCircle, Trash2, X } from "lucide-react";
+import { Ban, Check, ChevronLeft, Copy, Crown, ImagePlus, Lock, MessageCircle, Plus, Trash2, X } from "lucide-react";
 import { deleteNews, postNews } from "../lib/extra";
 import { setCloseFriends, togglePref } from "../lib/data";
 import { useUser } from "../lib/hooks";
 import { STATUS_META, type NewsItem, type UserDoc } from "../lib/types";
-import { errorText, relTime } from "../lib/util";
+import { compressImage, errorText, relTime } from "../lib/util";
 import { Avatar, Badges, Field, fieldClass } from "./ui";
 import { HauntedBg } from "./Horror";
 
@@ -22,46 +22,92 @@ export function Frame({ title, onClose, children, z = 45 }: { title: string; onC
 }
 
 export function NewsSheet({ me, isAdmin, news, onClose }: { me: UserDoc; isAdmin: boolean; news: NewsItem[]; onClose: () => void }) {
+  const [composing, setComposing] = useState(false);
+  const [idx, setIdx] = useState(0);
   const [title, setTitle] = useState("");
+  const [lead, setLead] = useState("");
   const [text, setText] = useState("");
+  const [cover, setCover] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function pick(f: File | undefined) {
+    if (!f) return;
+    try { setCover(await compressImage(f, 900, 0.7, 160_000)); setError(""); } catch (e) { setError(errorText(e)); }
+  }
+  function publish() {
+    setBusy(true);
+    setError("");
+    postNews(me.displayName, title, text, { lead, cover, byAvatar: me.avatar })
+      .then(() => { setTitle(""); setLead(""); setText(""); setCover(null); setComposing(false); })
+      .catch((e) => setError(errorText(e)))
+      .finally(() => setBusy(false));
+  }
+
   return (
-    <Frame title="News" onClose={onClose}>
-      {isAdmin ? (
-        <div className="glass space-y-3 rounded-3xl p-4">
-          <p className="font-display text-xl font-bold">📣 Nayi news post karo</p>
-          <Field label="TITLE"><input className={fieldClass} maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Heading" /></Field>
-          <Field label="MESSAGE"><textarea className="min-h-24 w-full rounded-2xl border border-paper/12 bg-paper/5 p-4 outline-none focus:border-rose/70" maxLength={1500} value={text} onChange={(e) => setText(e.target.value)} placeholder="Sabko ye dikhega" /></Field>
-          {error ? <p className="text-sm text-rose">{error}</p> : null}
-          <button type="button" disabled={busy || !title.trim() || !text.trim()} className="btn-hot tap h-12 w-full rounded-2xl font-display text-lg font-bold" onClick={() => { setBusy(true); setError(""); postNews(me.displayName, title, text).then(() => { setTitle(""); setText(""); }).catch((e) => setError(errorText(e))).finally(() => setBusy(false)); }}>{busy ? "POSTING…" : "POST NEWS"}</button>
+    <div className="sheet-up fixed inset-0 z-[45] overflow-hidden bg-[#1d3a0c] text-white">
+      {news.length === 0 ? (
+        <div className="news-green absolute inset-0 grid place-items-center px-8 text-center">
+          <div><p className="float text-6xl">📰</p><p className="mt-4 font-display text-4xl font-bold">No news yet</p><p className="mt-2 text-white/75">Jab owner kuch post karega, yahan dikhega.</p></div>
+        </div>
+      ) : (
+        <div className="news-snap yt-scroll flex h-full overflow-x-auto" onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
+          {news.map((n) => (
+            <article key={n.id} className="news-green relative h-full w-full shrink-0 overflow-hidden">
+              {n.cover ? <img src={n.cover} alt="" className="absolute inset-x-0 top-0 h-[62%] w-full object-cover" /> : null}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-[#2c4d10]/80" />
+              <div className="safe-top absolute inset-x-0 top-0 px-6 pt-20">
+                <h2 className="font-display text-[2.7rem] leading-[1.02] font-bold tracking-tight drop-shadow-[0_3px_18px_rgba(0,0,0,0.35)]">{n.title}</h2>
+                <div className="mt-4 flex items-center gap-2.5">
+                  <Avatar src={n.byAvatar ?? null} name={n.by} size="sm" />
+                  <p className="text-[0.95rem] font-semibold drop-shadow">{n.by}<span className="font-normal text-white/75"> · {relTime(n.at)}</span></p>
+                </div>
+              </div>
+              <div className="news-arch absolute inset-x-3 bottom-24 top-[40%] flex flex-col px-7 pt-14 pb-4">
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1 yt-scroll">
+                  {n.lead ? <p className="font-display text-[1.45rem] leading-tight font-bold">{n.lead}</p> : null}
+                  <p className={clsx("text-[1.02rem] leading-relaxed whitespace-pre-wrap text-white/90", n.lead && "mt-3")}>{n.text}</p>
+                </div>
+              </div>
+              {isAdmin ? <button type="button" className="tap absolute right-4 bottom-8 grid size-12 place-items-center rounded-full bg-black/35 backdrop-blur" aria-label="Delete news" onClick={() => void deleteNews(n.id)}><Trash2 className="size-5" /></button> : null}
+            </article>
+          ))}
+        </div>
+      )}
+
+      <div className="safe-top pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-3">
+        <button type="button" className="tap pointer-events-auto grid size-11 place-items-center rounded-full border border-white/40 bg-white/15 backdrop-blur-md" aria-label="Close" onClick={onClose}><ChevronLeft className="size-6" /></button>
+        {isAdmin ? <button type="button" className="tap pointer-events-auto grid size-11 place-items-center rounded-full border border-white/40 bg-white/15 backdrop-blur-md" aria-label="New news" onClick={() => setComposing(true)}><Plus className="size-6" /></button> : null}
+      </div>
+      {news.length > 1 ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-9 flex justify-center gap-1.5">
+          {news.slice(0, 12).map((n, i) => <span key={n.id} className={clsx("h-1.5 rounded-full bg-white transition-all", i === idx ? "w-6 opacity-100" : "w-1.5 opacity-45")} />)}
         </div>
       ) : null}
-      {news.length === 0 ? <div className="pop-in mt-10 text-center"><p className="float text-5xl">📰</p><p className="mt-3 text-sm text-paper/55">Abhi koi news nahi.</p></div> : (
-        <ul className="space-y-4">
-          {news.map((n, i) => (
-            <li
-              key={n.id}
-              className="fade-up relative overflow-hidden rounded-[28px] p-5"
-              style={{
-                ["--d" as string]: Math.min(i, 8) * 50,
-                background: "linear-gradient(165deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%)",
-                boxShadow: "0 20px 50px -24px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12)",
-              }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-display text-[1.55rem] leading-[1.15] font-bold tracking-tight text-paper">{n.title}</p>
-                {isAdmin ? <button type="button" className="tap shrink-0 rounded-full bg-rose/15 p-2 text-rose" aria-label="Delete news" onClick={() => void deleteNews(n.id)}><Trash2 className="size-4" /></button> : null}
-              </div>
-              <div className="mt-3 rounded-[22px] px-4 py-3.5" style={{ background: "rgba(0,0,0,0.22)" }}>
-                <p className="text-[0.95rem] leading-relaxed whitespace-pre-wrap text-paper/85">{n.text}</p>
-              </div>
-              <p className="mt-3 text-xs text-paper/40">{n.by} · {relTime(n.at)}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Frame>
+
+      {composing ? (
+        <div className="sheet-up absolute inset-0 z-10 flex flex-col bg-[#14270a]/95 backdrop-blur-xl">
+          <header className="safe-top flex h-16 shrink-0 items-center justify-between px-4">
+            <h3 className="font-display text-3xl font-bold">New news</h3>
+            <button type="button" className="tap grid size-11 place-items-center rounded-full" aria-label="Close" onClick={() => setComposing(false)}><X className="size-5" /></button>
+          </header>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-10">
+            <Field label="TITLE"><input className={fieldClass} maxLength={70} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Bada heading" /></Field>
+            <Field label="HEADLINE (bold line, optional)"><input className={fieldClass} maxLength={110} value={lead} onChange={(e) => setLead(e.target.value)} placeholder="Ek line ka summary" /></Field>
+            <Field label="NEWS TEXT"><textarea className="min-h-40 w-full rounded-2xl border border-paper/12 bg-paper/5 p-4 outline-none focus:border-lime-400/70" maxLength={1500} value={text} onChange={(e) => setText(e.target.value)} placeholder="Neeche jo likhna hai" /></Field>
+            <button type="button" className="tap flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-paper/25 text-paper/80" onClick={() => fileRef.current?.click()}>
+              <ImagePlus className="size-5" /> {cover ? "Cover photo badlo" : "Cover photo (optional)"}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={(e) => void pick(e.target.files?.[0])} />
+            {cover ? <img src={cover} alt="" className="h-40 w-full rounded-2xl object-cover" /> : null}
+            <p className="text-xs text-paper/50">Posted by: <span className="font-semibold text-paper/80">{me.displayName}</span> (naam card par dikhega)</p>
+            {error ? <p className="text-sm text-rose">{error}</p> : null}
+            <button type="button" disabled={busy || !title.trim() || !text.trim()} className="premium-btn tap h-14 w-full rounded-2xl font-display text-xl font-bold tracking-wide" onClick={publish}>{busy ? "POSTING…" : "POST NEWS"}</button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -6,7 +6,8 @@ import { getDeviceId, getPublicIp } from "../lib/device";
 import { isAdminEmail } from "../lib/extra";
 import { signupBlock } from "../lib/security";
 import { compressImage, errorText, withTimeout } from "../lib/util";
-import { Aurora, Avatar, Field, Mark, fieldClass } from "./ui";
+import { Avatar, Field, fieldClass } from "./ui";
+import { BlueBg, IronRose } from "./Brand";
 import type { UserDoc } from "../lib/types";
 
 const JUNK_NAMES = new Set(["player", "grok user", "dev user", "user"]);
@@ -107,8 +108,8 @@ export function Setup({ user, onBegin, onEnter }: { user: User; onBegin: () => v
 
   if (issued) {
     return (
-      <main className="safe-top relative flex h-dvh flex-col overflow-hidden bg-ink text-paper">
-        <Aurora />
+      <main className="safe-top relative flex h-dvh flex-col overflow-hidden text-white">
+        <BlueBg fadeToWhite={false} />
         {SPARKS.map((s, i) => (
           <span
             key={i}
@@ -150,17 +151,17 @@ export function Setup({ user, onBegin, onEnter }: { user: User; onBegin: () => v
   const canSubmit = !busy && displayName.trim().length > 0 && /^[a-z0-9_]{3,16}$/.test(username) && check.state !== "bad" && check.state !== "busy";
 
   return (
-    <main className="safe-top relative flex h-dvh flex-col overflow-hidden bg-ink text-paper">
-      <Aurora />
+    <main className="safe-top relative flex h-dvh flex-col overflow-hidden text-white">
+      <BlueBg fadeToWhite={false} />
       <form
-        className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-5 overflow-y-auto px-6 py-10"
+        className="relative mx-auto my-auto flex max-h-full w-full max-w-md flex-col gap-5 overflow-y-auto rounded-[32px] border border-white/25 bg-black/25 px-6 py-8 shadow-[0_30px_80px_-20px_rgba(60,120,255,0.6)] backdrop-blur-2xl"
         onSubmit={(e) => {
           e.preventDefault();
           if (canSubmit) void submit();
         }}
       >
         <div className="fade-up">
-          <Mark className="size-10" />
+          <IronRose className="size-14 drop-shadow-[0_10px_24px_rgba(140,180,255,0.8)]" />
           <h1 className="mt-5 font-display text-5xl leading-none font-bold">
             Profile <span className="grad-text">banao</span>
           </h1>
@@ -173,7 +174,7 @@ export function Setup({ user, onBegin, onEnter }: { user: User; onBegin: () => v
         <div className="fade-up flex items-center gap-4" style={{ "--d": 100 } as CSSProperties}>
           <button type="button" onClick={() => fileRef.current?.click()} className="tap relative rounded-full" aria-label="Upload profile photo">
             <Avatar src={avatar} name={displayName || username || "P"} size="lg" />
-            <span className="grad absolute right-0 bottom-0 grid size-8 place-items-center rounded-full text-white ring-4 ring-ink">
+            <span className="grad absolute right-0 bottom-0 grid size-8 place-items-center rounded-full text-white ring-4 ring-blue-900">
               <Camera className="size-4" />
             </span>
           </button>
@@ -231,7 +232,7 @@ export function Setup({ user, onBegin, onEnter }: { user: User; onBegin: () => v
         <button
           type="submit"
           disabled={!canSubmit}
-          className="btn-hot tap fade-up h-14 rounded-2xl font-display text-xl font-bold tracking-wide"
+          className="premium-btn tap fade-up h-14 rounded-2xl font-display text-xl font-bold tracking-wide"
           style={{ "--d": 340 } as CSSProperties}
         >
           {busy ? "SENDING…" : "CREATE ID & SEND REQUEST"}

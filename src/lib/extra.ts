@@ -52,9 +52,10 @@ export const deleteReport = (id: string) => deleteDoc(doc(db, "reports", id));
 export function watchNews(cb: (n: NewsItem[]) => void) {
   return onSnapshot(query(collection(db, "news"), orderBy("at", "desc"), limit(30)), (s) => cb(s.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<NewsItem, "id">) }))), () => cb([]));
 }
-export async function postNews(by: string, title: string, text: string) {
+export async function postNews(by: string, title: string, text: string, extra: { lead?: string; cover?: string | null; byAvatar?: string | null } = {}) {
   const ref = doc(collection(db, "news"));
-  await setDoc(ref, { title: title.trim().slice(0, 80), text: text.trim().slice(0, 1500), at: Date.now(), by });
+  const av = extra.byAvatar && extra.byAvatar.length < 60_000 ? extra.byAvatar : null;
+  await setDoc(ref, { title: title.trim().slice(0, 80), text: text.trim().slice(0, 1500), at: Date.now(), by, lead: (extra.lead ?? "").trim().slice(0, 120), cover: extra.cover ?? null, byAvatar: av });
 }
 export const deleteNews = (id: string) => deleteDoc(doc(db, "news", id));
 

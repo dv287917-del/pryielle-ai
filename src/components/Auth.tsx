@@ -4,7 +4,7 @@ import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from "firebase/auth";
 import { auth } from "../firebase";
 import { errorText } from "../lib/util";
-import { GoogleG } from "./ui";
+import { BlueBg, IronRose, Sparkle } from "./Brand";
 
 export async function googleSignIn() {
   if (Capacitor.isNativePlatform()) {
@@ -17,13 +17,13 @@ export async function googleSignIn() {
   }
 }
 
-/** Sky-blue glass login panel (SHRUHH-style structure, Google auth kept). */
+/** Welcome / sign-in: blue→white glow, rose hero, black + grey pill buttons (Google auth kept). */
 export function Auth() {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"" | "new" | "old">("");
   const [error, setError] = useState("");
 
-  async function go() {
-    setBusy(true);
+  async function go(kind: "new" | "old") {
+    setBusy(kind);
     setError("");
     try {
       await googleSignIn();
@@ -31,57 +31,37 @@ export function Auth() {
       const msg = errorText(e);
       if (!/cancel/i.test(msg)) setError(msg);
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
   return (
-    <main
-      className="safe-top relative flex h-dvh flex-col items-center justify-center overflow-hidden px-5 text-paper"
-      style={{
-        background: "radial-gradient(120% 80% at 20% 10%, #38bdf8 0%, transparent 50%), radial-gradient(100% 70% at 90% 90%, #6366f1 0%, transparent 45%), linear-gradient(160deg, #0c1a2e 0%, #0a1628 40%, #1e1b4b 100%)",
-      }}
-    >
-      {/* soft blobs */}
-      <div className="pointer-events-none absolute -left-20 top-10 size-72 rounded-full bg-sky-400/25 blur-3xl" />
-      <div className="pointer-events-none absolute -right-16 bottom-20 size-80 rounded-full bg-indigo-500/30 blur-3xl" />
+    <main className="safe-top relative flex h-dvh flex-col items-center overflow-hidden px-6 text-white">
+      <BlueBg />
+      <div className="fade-up relative mt-7 flex items-center gap-2">
+        <span className="grid size-8 place-items-center rounded-full bg-white/15 ring-1 ring-white/50 backdrop-blur"><IronRose className="size-6" /></span>
+        <span className="font-display text-2xl font-bold tracking-wide">IronRoses</span>
+      </div>
 
-      <div
-        className="relative w-full max-w-[360px] overflow-hidden rounded-[28px] border border-white/20 p-7 shadow-[0_25px_80px_-20px_rgba(56,189,248,0.45)]"
-        style={{
-          background: "linear-gradient(145deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.05) 100%)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-        }}
-      >
-        <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/25">
-          <span className="font-display text-2xl font-bold tracking-tight text-sky-200">IR</span>
+      <div className="relative flex min-h-0 flex-1 items-center justify-center">
+        <div className="relative">
+          <span className="boot-halo absolute -inset-8 rounded-full" />
+          <IronRose className="rose-float relative size-52 drop-shadow-[0_28px_50px_rgba(10,40,160,0.55)]" />
+          <Sparkle className="sparkle-a absolute -right-2 -top-2 size-10" />
+          <Sparkle className="sparkle-b absolute -left-4 bottom-8 size-5" />
         </div>
+      </div>
 
-        <h1 className="text-center font-display text-[1.65rem] font-bold tracking-wide text-white">
-          Welcome Back
-        </h1>
-        <p className="mt-1 text-center text-sm text-sky-100/70">IronRoses MSG · Google se continue karo</p>
-
-        {error ? <p className="mt-4 rounded-xl bg-rose-500/20 px-3 py-2 text-center text-sm text-rose-200">{error}</p> : null}
-
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void go()}
-          className="tap mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-2xl font-semibold text-slate-900 shadow-lg disabled:opacity-60"
-          style={{
-            background: "linear-gradient(90deg, #7dd3fc 0%, #a5b4fc 50%, #c4b5fd 100%)",
-            boxShadow: "0 12px 40px -8px rgba(125,211,252,0.55)",
-          }}
-        >
-          <GoogleG className="size-5" />
-          {busy ? "Signing in…" : "Continue with Google"}
+      <div className="fade-up relative w-full max-w-sm pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center" style={{ "--d": 140 } as CSSProperties}>
+        <h1 className="font-display text-[2rem] leading-[1.1] font-bold text-slate-900">Chat, done right.<br />Anytime, anywhere</h1>
+        {error ? <p className="mt-3 rounded-xl bg-rose-500/10 px-3 py-2 text-sm text-rose-600">{error}</p> : null}
+        <button type="button" disabled={Boolean(busy)} onClick={() => void go("new")} className="premium-btn tap mt-6 h-14 w-full rounded-2xl font-display text-lg font-bold tracking-wide disabled:opacity-60">
+          {busy === "new" ? "Signing in…" : "Get Started"}
         </button>
-
-        <p className="mt-5 text-center text-[11px] text-white/40">
-          Login karte hi ID ban jayegi · Owner approve karega
-        </p>
+        <button type="button" disabled={Boolean(busy)} onClick={() => void go("old")} className="tap mt-3 h-14 w-full rounded-2xl bg-slate-200/80 font-display text-lg font-semibold text-slate-800 backdrop-blur disabled:opacity-60">
+          {busy === "old" ? "Signing in…" : "I already have an account"}
+        </button>
+        <p className="mt-4 text-[11px] leading-snug text-slate-500">Continue with Google · Owner approves every new ID.<br />By continuing you agree to our Terms of Service and Privacy Policy</p>
       </div>
     </main>
   );
