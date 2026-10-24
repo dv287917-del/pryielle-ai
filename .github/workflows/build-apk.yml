@@ -1,4 +1,4 @@
-name: Build APK
+name: Build FF Glory Bot APK
 
 on:
   push:
@@ -9,129 +9,79 @@ permissions:
   contents: write
 
 jobs:
-  apk:
+  build-apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # AUTO UNZIP: repo ke root par jo bhi .zip padi ho (project ki zip), use khol ke saari files
-      # repo mein rakh deta hai (Vercel ko bhi yahi files chahiye) aur zip hata deta hai.
-      # FIX 1: package.json dhundhte waqt functions/ folder ignore hota hai aur sabse upar wali (pm/) chuni jaati hai.
-      # FIX 2: purani files delete nahi hoti; jo top-level cheez zip me nahi hai (android-keystore, scripts, etc.) wapas rakh di jaati hai.
       - name: Auto-unzip project zip
         shell: bash
         run: |
           set -euo pipefail
           Z="$(ls -t ./*.zip 2>/dev/null | head -n1 || true)"
-          if [ -z "$Z" ]; then echo "Root par zip nahi hai, repo ki files jaisi hain waisi use hongi."; exit 0; fi
-          echo "Zip mili: $Z"
-          rm -rf /tmp/unz && mkdir /tmp/unz && unzip -q "$Z" -d /tmp/unz
-          SRC=/tmp/unz
-          if [ ! -f "$SRC/package.json" ]; then
-            n="$(find /tmp/unz -maxdepth 3 -name package.json -not -path '*/node_modules/*' -not -path '*/functions/*' | awk '{print length($0) " " $0}' | sort -n | head -n1 | cut -d' ' -f2- || true)"
-            [ -n "$n" ] && SRC="$(dirname "$n")"
+          if [ -z "$Z" ]; then
+            echo "Zip nahi mili — repo ki files use hongi"
+            exit 0
           fi
-          if [ ! -f "$SRC/package.json" ]; then echo "::error::Zip ke andar package.json nahi mili"; exit 1; fi
-          echo "Project root in zip: $SRC"
-          rm -rf "$SRC/.github"
+          echo "Zip mili: $Z"
+          rm -rf /tmp/unz && mkdir /tmp/unz
+          unzip -q "$Z" -d /tmp/unz
+
+          # flutter-app folder dhundho
+          SRC="$(find /tmp/unz -maxdepth 4 -name pubspec.yaml | head -n1 | xargs dirname || true)"
+          if [ -z "$SRC" ]; then
+            echo "::error::pubspec.yaml nahi mila zip ke andar"
+            exit 1
+          fi
+          echo "Flutter project mila: $SRC"
+
+          # files copy karo root pe
           rm -rf /tmp/old && mkdir /tmp/old
           find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec mv {} /tmp/old/ \;
           cp -a "$SRC"/. .
-          for f in /tmp/old/* /tmp/old/.[!.]*; do
-            [ -e "$f" ] || continue
-            b="$(basename "$f")"
-            case "$b" in *.zip) continue;; esac
-            if [ ! -e "./$b" ]; then mv "$f" "./$b"; echo "Restored from old repo: $b"; fi
-          done
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Auto-unzip project zip" || true
-          git push origin "HEAD:${{ github.ref_name }}" || echo "::warning::push nahi hua (Settings > Actions > Workflow permissions > Read and write karo)"
+          git commit -m "Auto-unzip flutter project" || true
+          git push origin "HEAD:${{ github.ref_name }}" || echo "Push skip"
 
-      # Handle repositories where the ZIP was uploaded/extracted under pm/
-      - name: Normalize project layout and locate Firebase config
+      - name: Locate flutter project
         shell: bash
         run: |
-          set -euo pipefail
-          if [ ! -f package.json ] && [ -f pm/package.json ]; then
-            cp -a pm/. .
+          if [ -f pubspec.yaml ]; then
+            echo "FLUTTER_DIR=." >> $GITHUB_ENV
+          elif [ -f flutter-app/pubspec.yaml ]; then
+            echo "FLUTTER_DIR=flutter-app" >> $GITHUB_ENV
+          else
+            P="$(find . -maxdepth 4 -name pubspec.yaml ! -path '*/.git/*' | head -n1 | xargs dirname || true)"
+            if [ -z "$P" ]; then echo "::error::pubspec.yaml nahi mila"; exit 1; fi
+            echo "FLUTTER_DIR=$P" >> $GITHUB_ENV
           fi
-          mkdir -p config
-          if [ ! -f config/google-services.json ]; then
-            if [ -f pm/config/google-services.json ]; then
-              cp pm/config/google-services.json config/google-services.json
-            elif [ -f google-services.json ]; then
-              cp google-services.json config/google-services.json
-            else
-              candidate="$(find . -type f -name google-services.json -not -path './node_modules/*' -not -path './.git/*' -print -quit || true)"
-              if [ -n "$candidate" ]; then
-                cp "$candidate" config/google-services.json
-              fi
-            fi
-          fi
-          echo "Project root: $(pwd)"
-          echo "package.json: $(test -f package.json && echo found || echo missing)"
-          echo "Firebase config: $(test -f config/google-services.json && echo found || echo missing)"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
-      - name: Read version
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.9'
+          channel: stable
 
-      - name: Check Firebase file
+      - name: Flutter pub get
         run: |
-          if [ ! -f config/google-services.json ]; then
-            echo "::error::config/google-services.json missing after layout normalization"
-            echo "Repository files at root:"
-            ls -la
-            echo "Possible Firebase config locations:"
-            find . -type f -name google-services.json -not -path './node_modules/*' -not -path './.git/*' -print || true
-            exit 1
-          fi
-
-      - name: Install
-        run: npm install --no-audit --no-fund
-
-      - name: Build web app
-        run: npm run build
-
-      - name: Add Android
-        run: |
-          npx cap add android
-          node scripts/patch-android.mjs
-          npx cap sync android
-
-      - name: Use fixed signing key
-        run: |
-          if [ ! -f android-keystore/debug.keystore ]; then
-            echo "::error::android-keystore/debug.keystore repo ke root me nahi hai. Apni purani debug.keystore wahan upload karo."
-            echo "Root files:"; ls -la
-            exit 1
-          fi
-          mkdir -p ~/.android
-          cp android-keystore/debug.keystore ~/.android/debug.keystore
+          cd ${{ env.FLUTTER_DIR }}
+          flutter pub get
 
       - name: Build APK
-        working-directory: android
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          cd ${{ env.FLUTTER_DIR }}
+          flutter build apk --release
 
-      - name: Collect APK and source
-        run: |
-          mkdir -p out
-          cp android/app/build/outputs/apk/debug/app-debug.apk "out/Pryielle-MSG-v${VERSION}.apk"
-          git archive --format=zip --prefix=pm/ -o "out/Pryielle-MSG-v${VERSION}-source.zip" HEAD
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: Pryielle-MSG-v${{ env.VERSION }}
-          path: out/*
+          name: ff-glory-bot-apk
+          path: ${{ env.FLUTTER_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
