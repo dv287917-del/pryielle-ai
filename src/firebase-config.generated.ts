@@ -1,4 +1,4 @@
-// AUTO-GENERATED — do not edit
+// AUTO-GENERATED
 export const firebaseConfig = {
   "apiKey": "AIzaSyCloqEW-Z8Y0vn0jNoUMMoDhtnTdwJgjxI",
   "authDomain": "pryielle-msg.firebaseapp.com",
