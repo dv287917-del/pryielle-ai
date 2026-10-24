@@ -1,90 +1,138 @@
-name: Build FF Glory Bot APK
+name: Build APK
 
 on:
-  push:
-    branches: [main, master]
-  workflow_dispatch:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write
 
 jobs:
-  build-apk:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Auto-unzip and setup
-        shell: bash
-        run: |
-          set -euo pipefail
+      # AUTO UNZIP: repo ke root par jo bhi .zip padi ho (project ki zip), use khol ke saari files
+      # repo mein rakh deta hai (Vercel ko bhi yahi files chahiye) aur zip hata deta hai.
+      # FIX 1: package.json dhundhte waqt functions/ folder ignore hota hai aur sabse upar wali (pm/) chuni jaati hai.
+      # FIX 2: purani files delete nahi hoti; jo top-level cheez zip me nahi hai (android-keystore, scripts, etc.) wapas rakh di jaati hai.
+      - name: Auto-unzip project zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          Z="$(ls -t ./*.zip 2>/dev/null | head -n1 || true)"
+          if [ -z "$Z" ]; then echo "Root par zip nahi hai, repo ki files jaisi hain waisi use hongi."; exit 0; fi
+          echo "Zip mili: $Z"
+          rm -rf /tmp/unz && mkdir /tmp/unz && unzip -q "$Z" -d /tmp/unz
+          SRC=/tmp/unz
+          if [ ! -f "$SRC/package.json" ]; then
+            n="$(find /tmp/unz -maxdepth 3 -name package.json -not -path '*/node_modules/*' -not -path '*/functions/*' | awk '{print length($0) " " $0}' | sort -n | head -n1 | cut -d' ' -f2- || true)"
+            [ -n "$n" ] && SRC="$(dirname "$n")"
+          fi
+          if [ ! -f "$SRC/package.json" ]; then echo "::error::Zip ke andar package.json nahi mili"; exit 1; fi
+          echo "Project root in zip: $SRC"
+          rm -rf "$SRC/.github"
+          rm -rf /tmp/old && mkdir /tmp/old
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec mv {} /tmp/old/ \;
+          cp -a "$SRC"/. .
+          for f in /tmp/old/* /tmp/old/.[!.]*; do
+            [ -e "$f" ] || continue
+            b="$(basename "$f")"
+            case "$b" in *.zip) continue;; esac
+            if [ ! -e "./$b" ]; then mv "$f" "./$b"; echo "Restored from old repo: $b"; fi
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Auto-unzip project zip" || true
+          git push origin "HEAD:${{ github.ref_name }}" || echo "::warning::push nahi hua (Settings > Actions > Workflow permissions > Read and write karo)"
 
-          Z="$(ls -t ./*.zip 2>/dev/null | head -n1 || true)"
-          if [ -n "$Z" ]; then
-            echo "Zip mili: $Z"
-            rm -rf /tmp/unz && mkdir /tmp/unz
-            unzip -q "$Z" -d /tmp/unz
+      # Handle repositories where the ZIP was uploaded/extracted under pm/
+      - name: Normalize project layout and locate Firebase config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f package.json ] && [ -f pm/package.json ]; then
+            cp -a pm/. .
+          fi
+          mkdir -p config
+          if [ ! -f config/google-services.json ]; then
+            if [ -f pm/config/google-services.json ]; then
+              cp pm/config/google-services.json config/google-services.json
+            elif [ -f google-services.json ]; then
+              cp google-services.json config/google-services.json
+            else
+              candidate="$(find . -type f -name google-services.json -not -path './node_modules/*' -not -path './.git/*' -print -quit || true)"
+              if [ -n "$candidate" ]; then
+                cp "$candidate" config/google-services.json
+              fi
+            fi
+          fi
+          echo "Project root: $(pwd)"
+          echo "package.json: $(test -f package.json && echo found || echo missing)"
+          echo "Firebase config: $(test -f config/google-services.json && echo found || echo missing)"
 
-            PUBSPEC="$(find /tmp/unz -name pubspec.yaml -not -path '*/.git/*' | head -n1 || true)"
-            if [ -z "$PUBSPEC" ]; then
-              echo "::error::pubspec.yaml zip ke andar nahi mila"
-              find /tmp/unz -type f | head -30
-              exit 1
-            fi
-            FLUTTER_SRC="$(cd "$(dirname "$PUBSPEC")" && pwd)"
-            echo "Flutter project: $FLUTTER_SRC"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-            find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec rm -rf {} +
-            cp -a "$FLUTTER_SRC"/. .
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -m "Auto-unzip flutter project" || true
-            git push origin "HEAD:${{ github.ref_name }}" || true
-          else
-            echo "Zip nahi mili, repo ki files use hongi"
-          fi
+      - name: Read version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
 
-      - name: Verify pubspec exists
-        shell: bash
-        run: |
-          if [ ! -f pubspec.yaml ]; then
-            echo "::error::pubspec.yaml root pe nahi hai"
-            ls -la
-            exit 1
-          fi
-          echo "pubspec.yaml mila ✓"
+      - name: Check Firebase file
+        run: |
+          if [ ! -f config/google-services.json ]; then
+            echo "::error::config/google-services.json missing after layout normalization"
+            echo "Repository files at root:"
+            ls -la
+            echo "Possible Firebase config locations:"
+            find . -type f -name google-services.json -not -path './node_modules/*' -not -path './.git/*' -print || true
+            exit 1
+          fi
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+      - name: Install
+        run: npm install --no-audit --no-fund
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.16.9'
-          channel: stable
+      - name: Build web app
+        run: npm run build
 
-      - name: Flutter pub get
-        run: flutter pub get
+      - name: Add Android
+        run: |
+          npx cap add android
+          node scripts/patch-android.mjs
+          npx cap sync android
 
-      - name: Generate Android folder if missing
-        run: |
-          if [ ! -d android ]; then
-            echo "android/ folder nahi hai, generate kar rahe hain..."
-            flutter create --platforms=android --project-name ff_glory_bot .
-            echo "android/ generated ✓"
-          else
-            echo "android/ already exists ✓"
-          fi
+      - name: Use fixed signing key
+        run: |
+          if [ ! -f android-keystore/debug.keystore ]; then
+            echo "::error::android-keystore/debug.keystore repo ke root me nahi hai. Apni purani debug.keystore wahan upload karo."
+            echo "Root files:"; ls -la
+            exit 1
+          fi
+          mkdir -p ~/.android
+          cp android-keystore/debug.keystore ~/.android/debug.keystore
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ff-glory-bot-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
+      - name: Collect APK and source
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/Pryielle-MSG-v${VERSION}.apk"
+          git archive --format=zip --prefix=pm/ -o "out/Pryielle-MSG-v${VERSION}-source.zip" HEAD
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pryielle-MSG-v${{ env.VERSION }}
+          path: out/*
+          
