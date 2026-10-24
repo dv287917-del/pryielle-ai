@@ -11,7 +11,11 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0D1117),
         title: const Text('SETTINGS',
-          style: TextStyle(color: Color(0xFF00E5FF), fontFamily: 'monospace', letterSpacing: 2, fontSize: 16)),
+            style: TextStyle(
+                color: Color(0xFF00E5FF),
+                fontFamily: 'monospace',
+                letterSpacing: 2,
+                fontSize: 16)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF8B949E)),
           onPressed: () => Navigator.pop(context),
@@ -21,32 +25,39 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _infoTile('📱', 'App Version', AppConfig.version),
-            const SizedBox(height: 12),
-            _infoTile('⚡', 'Access', 'Unlimited'),
+            _tile('App', AppConfig.appName),
+            _tile('Version', AppConfig.version),
+            _tile('Region', AppConfig.region.toUpperCase()),
           ],
         ),
       ),
     );
   }
 
-  Widget _infoTile(String emoji, String title, String value) {
+  Widget _tile(String label, String value) {
     return Container(
-      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
         border: Border.all(color: const Color(0xFF1E2733)),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(children: [
-        Text(emoji, style: const TextStyle(fontSize: 22)),
-        const SizedBox(width: 14),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12)),
-          Text(value, style: const TextStyle(color: Color(0xFFC9D1D9), fontFamily: 'monospace', fontSize: 13)),
-        ]),
-      ]),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  color: Color(0xFF8B949E),
+                  fontFamily: 'monospace',
+                  fontSize: 12)),
+          Text(value,
+              style: const TextStyle(
+                  color: Color(0xFFC9D1D9),
+                  fontFamily: 'monospace',
+                  fontSize: 12)),
+        ],
+      ),
     );
   }
 }

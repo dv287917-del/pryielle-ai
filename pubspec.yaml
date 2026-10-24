@@ -1,5 +1,5 @@
-name: ff_glory_bot
-description: FF Glory Bot App
+name: ff_glory
+description: FF Glory — Free Fire Stats Tracker
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
