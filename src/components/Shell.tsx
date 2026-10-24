@@ -412,7 +412,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
             stories={<StoriesStrip me={me} owners={storyOwners} onOpen={(i) => setStoryAt(i)} onCreate={() => setCreatorOpen(true)} />}
             requestCount={requests.length} requests={<ul className="space-y-2">{requests.map((r) => <RequestRow key={r.id} chat={r} me={me} onOpen={openChat} />)}</ul>}
             floatBtn={<FloatBtn />}
-            onTab={(t) => setTab(t)} onNewSquad={() => setGroupFor("new")} onJoin={() => setJoinOpen(true)} onSecret={() => setSecretOpen(true)} onAi={() => setAiOpen(true)} onYoutube={() => setTubeOpen(true)} packs={packs} onPack={setPackOpen} onAdmin={() => setAdminOpen(true)} onStatus={(st) => void setStatus(me.uid, st)} />
+            onTab={(t) => setTab(t)} onNewSquad={() => setGroupFor("new")} onJoin={() => setJoinOpen(true)} onSecret={() => setSecretOpen(true)} onAi={() => setAiOpen(true)} onYoutube={() => setTubeOpen(true)} packs={packs.filter((x) => x.slot !== "secret")} onPack={setPackOpen} onAdmin={() => setAdminOpen(true)} onStatus={(st) => void setStatus(me.uid, st)} />
         ) : null}
 
         {tab === "chats" ? (
@@ -535,7 +535,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
       {creatorOpen ? <StoryCreator me={me} contacts={Object.values(contactUsers)} onClose={() => setCreatorOpen(false)} onPublished={() => setStoryTick((v) => v + 1)} /> : null}
       <SpamGuard />
       {aiOpen ? <Suspense fallback={null}><AiChat uid={me.uid} name={me.displayName} onClose={() => setAiOpen(false)} /></Suspense> : null}
-      {secretOpen ? <Suspense fallback={null}><Secret onClose={() => setSecretOpen(false)} /></Suspense> : null}
+      {secretOpen ? <Suspense fallback={null}><Secret me={me} pack={[...packs].filter((x) => x.slot === "secret").sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))[0] ?? null} onClose={() => setSecretOpen(false)} /></Suspense> : null}
       {groupFor ? <GroupSheet mode={groupFor} me={me} onClose={() => setGroupFor(null)} onOpen={(id) => { setTab("chats"); openChat(id); }} onLeft={() => { setGroupFor(null); setActiveId(null); }} /> : null}
       {joinOpen ? <JoinSheet me={me} onClose={() => setJoinOpen(false)} onOpen={(id) => { setTab("chats"); openChat(id); }} /> : null}
 

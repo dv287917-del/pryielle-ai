@@ -177,3 +177,11 @@ Still open: banner voice notes, Admin-AI feature builder, Pro group theme broadc
 - [x] firestore.rules: featureDrafts (admin) + featurePacks (read approved users, write admin) — **console mein rules publish karo**.
 - [x] New Boot loading screen (rose bloom, orbit dots, letter wave, % progress, low-perf safe).
 - Limit: Pack sirf local sandbox mein chalta hai; native Android / sabke beech shared data wale features ke liye app code update chahiye.
+
+---
+# v2.14.1 — AI Builder quality overhaul
+- [x] 3-stage pipeline: spec (requirements checklist) -> code (pro model, up to 48k tokens) -> review + auto test (hidden sandbox runs pack, catches JS errors, auto-fix up to 2x)
+- [x] App design kit injected in packs (live theme colours, Sora/Rajdhani fonts, .glass/.card/.btn/.rise classes)
+- [x] Pack slot: home | secret. Secret slot plays full-screen after PIN + START + countdown (replaces "Not available")
+- [x] PRY.vibrate, runtime error banner in Preview, iframe autoplay for WebAudio
+- [x] vercel.json maxDuration 300 (agar plan allow na kare to 60 karo — builder tab slow/fail hoga). Builder model: aiAdmin/main.builderModel (default gemini-pro-latest)

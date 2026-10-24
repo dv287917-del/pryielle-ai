@@ -3,6 +3,9 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Delete, Lock, Play, X } from "lucide-react";
 import { pushBack } from "../lib/util";
 import { sfx } from "../lib/sfx";
+import { PackHost } from "./PackHost";
+import type { Pack } from "../lib/packs";
+import type { UserDoc } from "../lib/types";
 
 type Phase = "pin" | "locked" | "count" | "boom";
 
@@ -44,7 +47,7 @@ function Chains({ wild }: { wild: boolean }) {
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
 
-export function Secret({ onClose }: { onClose: () => void }) {
+export function Secret({ onClose, pack, me }: { onClose: () => void; pack?: Pack | null; me: UserDoc }) {
   const [phase, setPhase] = useState<Phase>("pin");
   const [n, setN] = useState(5);
   const [pin, setPin] = useState("");
@@ -147,6 +150,8 @@ export function Secret({ onClose }: { onClose: () => void }) {
             </div>
           )}
         </div>
+      ) : pack ? (
+        <PackHost pack={pack} me={me} bare onClose={onClose} />
       ) : (
         <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
           <Lock className="size-12 text-rose" />

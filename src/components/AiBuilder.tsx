@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { Download, Eye, ImagePlus, Loader2, Paperclip, Plus, Rocket, Send, Trash2, Undo2, X } from "lucide-react";
 import {
-  askBuilder, deletePack, makeImage, publishPack, savePackDraft, unpublishPack, watchAdminPacks,
-  type AdminPack, type BuilderAttachment, type BuilderFile, type BuilderTurn,
+  deletePack, makeImage, publishPack, savePackDraft, stageCode, stageReview, stageSpec, testPack, unpublishPack, watchAdminPacks,
+  type AdminPack, type BuilderAttachment, type BuilderFile, type BuilderTurn, type FeatureSpec,
 } from "../lib/packs";
 import { readDataUrl } from "../lib/media";
 import { errorText } from "../lib/util";
@@ -84,7 +84,7 @@ const save = (name: string, mime: string, content: string, b64 = false) => {
 export function AiBuilderTab({ me }: { me: UserDoc }) {
   const [packs, setPacks] = useState<AdminPack[]>([]);
   const [view, setView] = useState<"chat" | "packs">("chat");
-  const [msgs, setMsgs] = useState<Msg[]>([{ id: 0, role: "assistant", text: "Bolo kya banana hai 😎\n\n• “Home par daily quiz feature banao”\n• “Ek image banao: neon rose logo”\n• Photo/video/file attach karke bolo “is jaisa UI banao”\n\nFeature pehle sirf aapko dikhega (Preview). Aap Publish dabaoge tabhi sabko milega." }]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ id: 0, role: "assistant", text: "Bolo kya banana hai 😎 Main pehle plan banaunga, phir poora code likhunga, phir khud test karunga — isme kuch minute lagte hain.\n\n• “Secret mein tagda jump scare daal do”\n• “Home par daily quiz feature banao”\n• “Ek image banao: neon rose logo”\n• Photo/video/file attach karke bolo “is jaisa UI banao”\n\nFeature pehle sirf aapko dikhega (Preview). Aap Publish dabaoge tabhi sabko milega." }]);
   const [text, setText] = useState("");
   const [atts, setAtts] = useState<{ att: BuilderAttachment; thumb?: string }[]>([]);
   const [busy, setBusy] = useState(false);
@@ -132,24 +132,48 @@ export function AiBuilderTab({ me }: { me: UserDoc }) {
       : [a.att]));
     push({ role: "user", text: t || "(attachment)", thumbs: sent.map((a) => a.thumb).filter(Boolean) as string[] });
     setText(""); setAtts([]);
-    const pid = push({ role: "assistant", text: "Soch raha hoon… (feature banane mein 20-40 second lag sakte hain)", pending: true });
+    const pid = push({ role: "assistant", text: "📝 Pehle aapki baat poori samajh raha hoon…", pending: true });
     try {
       const history: BuilderTurn[] = msgs.filter((m) => m.id !== 0 && !m.pending && !m.error).slice(-12).map((m) => ({ role: m.role, text: m.text.slice(0, 3000) }));
       history.push({ role: "user", text: t || "Is attachment ko dekho aur batao / banao." });
-      const r = await askBuilder(history, flat, cur ? { title: cur.title, html: cur.html } : null);
-      let packId: string | undefined;
-      if (r.pack) {
-        const saved = await savePackDraft(cur ? cur.id : null, r.pack, cur?.rev ?? 0);
-        packId = saved.id; setCurId(saved.id);
+      const current = cur ? { title: cur.title, html: cur.html } : null;
+      const sp = await stageSpec(history, flat, current);
+
+      if (sp.kind !== "feature" || !sp.spec) {
+        patch(pid, { text: sp.reply || "Ho gaya ✅", pending: false, files: sp.files });
+        if (sp.imagePrompt) {
+          const iid = push({ role: "assistant", text: "🎨 Image ban rahi hai…", pending: true });
+          try {
+            const im = await makeImage(sp.imagePrompt, flat.find((a) => a.kind === "image"));
+            patch(iid, { text: im.text || "Ye lo image 🎨", pending: false, image: { data: im.image, mime: im.mime } });
+          } catch (e) { patch(iid, { text: errorText(e), pending: false, error: true }); }
+        }
+        return;
       }
-      patch(pid, { text: r.reply || "Ho gaya ✅", pending: false, packId, files: r.files });
-      if (r.imagePrompt) {
-        const iid = push({ role: "assistant", text: "Image ban rahi hai…", pending: true });
-        try {
-          const im = await makeImage(r.imagePrompt, flat.find((a) => a.kind === "image"));
-          patch(iid, { text: im.text || "Ye lo image 🎨", pending: false, image: { data: im.image, mime: im.mime } });
-        } catch (e) { patch(iid, { text: errorText(e), pending: false, error: true }); }
+
+      const spec: FeatureSpec = sp.spec;
+      const plan = `✅ Maine ye samjha:\n${spec.requirements.map((r) => `• ${r}`).join("\n")}\n\n${spec.slot === "secret" ? "📍 Jagah: Secret (countdown ke baad auto-play)" : "📍 Jagah: Home"}${sp.reply ? `\n${sp.reply}` : ""}`;
+      patch(pid, { text: `${plan}\n\n⚙️ Ab poora code likh raha hoon (mehnat se, 2-6 minute lag sakte hain — app band mat karna)…`, pending: true });
+
+      let html = (await stageCode(history, flat, current, spec)).html;
+      patch(pid, { text: `${plan}\n\n🔍 Code ban gaya. Ab review + test…`, pending: true });
+
+      let notes = "";
+      const rv = await stageReview(spec, html, [], flat.filter((a) => a.kind === "image").slice(0, 3));
+      if (rv.changed) { html = rv.html; if (rv.issues) notes = rv.issues; }
+      let errs = await testPack(html);
+      for (let i = 0; i < 2 && errs.length; i += 1) {
+        patch(pid, { text: `${plan}\n\n🛠 JS error mila, theek kar raha hoon… (${errs[0].slice(0, 80)})`, pending: true });
+        const fx = await stageReview(spec, html, errs, []);
+        if (!fx.changed) break;
+        html = fx.html;
+        errs = await testPack(html);
       }
+      if (errs.length) notes = `⚠️ Ek chhota JS error bacha: ${errs[0].slice(0, 100)} — Preview mein dekh kar batao, theek kar dunga.`;
+
+      const saved = await savePackDraft(cur ? cur.id : null, { title: spec.title, icon: spec.icon, summary: spec.summary, html, slot: spec.slot }, cur?.rev ?? 0);
+      setCurId(saved.id);
+      patch(pid, { text: `${plan}\n\n🎉 Ready! Pehle Preview karke dekh lo.${notes ? `\n(${notes})` : ""}`, pending: false, packId: saved.id });
     } catch (e) { patch(pid, { text: errorText(e), pending: false, error: true }); }
     finally { setBusy(false); }
   };
@@ -195,7 +219,7 @@ export function AiBuilderTab({ me }: { me: UserDoc }) {
                     ))}
                     {p ? (
                       <div className="rounded-xl border border-paper/15 bg-black/20 p-2.5">
-                        <p className="truncate font-bold">{p.icon} {p.title} <span className="text-[0.65rem] font-semibold text-amber-300">DRAFT v{p.rev}</span></p>
+                        <p className="truncate font-bold">{p.icon} {p.title} <span className="text-[0.65rem] font-semibold text-amber-300">DRAFT v{p.rev} · {p.slot === "secret" ? "SECRET" : "HOME"}</span></p>
                         {p.summary ? <p className="mt-0.5 text-xs text-paper/60">{p.summary}</p> : null}
                         <div className="mt-2 flex gap-2">
                           <button type="button" onClick={() => setPreview(p.id)} className="glass tap flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-bold"><Eye className="size-4" /> Preview</button>
@@ -238,7 +262,7 @@ export function AiBuilderTab({ me }: { me: UserDoc }) {
                 <span className="text-2xl">{p.icon}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">{p.title}</p>
-                  <p className="text-[0.7rem] text-paper/50">v{p.rev} · {p.live ? (p.dirty ? "LIVE (nayi draft pending)" : "🟢 LIVE sabko") : "Draft"}</p>
+                  <p className="text-[0.7rem] text-paper/50">v{p.rev} · {p.slot === "secret" ? "🔒 Secret" : "🏠 Home"} · {p.live ? (p.dirty ? "LIVE (nayi draft pending)" : "🟢 LIVE sabko") : "Draft"}</p>
                 </div>
               </div>
               {p.summary ? <p className="text-xs text-paper/60">{p.summary}</p> : null}
@@ -260,7 +284,7 @@ export function AiBuilderTab({ me }: { me: UserDoc }) {
         <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-5" onClick={() => setConfirm(null)}>
           <div className="glass w-full max-w-sm space-y-3 rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
             <p className="text-lg font-bold">{confirm.icon} Publish karna hai?</p>
-            <p className="text-sm text-paper/70">“{confirm.title}” (v{confirm.rev}) turant sabhi users ke Home par aa jayega — update karne ki zaroorat nahi. Galti hui to Unpublish se wapas le sakte ho.</p>
+            <p className="text-sm text-paper/70">“{confirm.title}” (v{confirm.rev}) {confirm.slot === "secret" ? "sabhi users ke Secret mein (PIN + START + countdown ke baad) chalega" : "turant sabhi users ke Home par aa jayega"} — update karne ki zaroorat nahi. Galti hui to Unpublish se wapas le sakte ho.</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setConfirm(null)} className="glass tap h-12 flex-1 rounded-xl text-sm font-bold">Abhi nahi</button>
               <button type="button" onClick={() => void doPublish(confirm)} className="grad tap h-12 flex-1 rounded-xl text-sm font-bold text-white">Haan, publish</button>

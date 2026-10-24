@@ -57,7 +57,7 @@ async function gemini(c, contents, maxTokens, extra, opts = {}) {
  if(!key) throw new Error("Vercel Environment Variable GEMINI_API_KEY missing");
  let model=c.model;
  for(let n=0;n<3;n++){
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":key},body:JSON.stringify({systemInstruction:{parts:[{text:opts.system||system(c,extra)}]},contents,generationConfig:{maxOutputTokens:maxTokens,temperature:opts.temperature??c.temperature,...(opts.json?{responseMimeType:"application/json"}:{})}}),signal:AbortSignal.timeout(100000)});
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":key},body:JSON.stringify({systemInstruction:{parts:[{text:opts.system||system(c,extra)}]},contents,generationConfig:{maxOutputTokens:maxTokens,temperature:opts.temperature??c.temperature,...(opts.json?{responseMimeType:"application/json"}:{})}}),signal:AbortSignal.timeout(opts.timeout||100000)});
   if(r.ok){const j=await r.json();const cand=j.candidates?.[0]||{};const t=(cand.content?.parts||[]).filter(p=>typeof p.text==="string"&&!p.thought).map(p=>p.text).join("").trim();return t||"Hmm, kuch samajh nahi aaya. Ek baar phir bolo? 😅";}
   const body=await r.text().catch(()=> "");
   if(r.status===404&&model!==FALLBACK_MODEL){model=FALLBACK_MODEL;continue;}
@@ -80,38 +80,87 @@ function partsFor(text, attachments=[], max=4) {
  parts.push({text:text||"(is file/photo ko dekho aur batao)"});return parts;
 }
 
-const BUILDER_SYSTEM = `Tum "IronRoses MSG" app ke admin (owner) ke personal AI Builder ho. Owner Hinglish mein baat karta hai; "reply" hamesha chhota, saaf Hinglish mein likho.
-Tum SIRF ek JSON object return karte ho (koi markdown/backtick nahi) is shape mein:
-{"reply":"string","pack":null|{"title":"max 40 chars","icon":"1 emoji","summary":"1 line","html":"poora HTML document"},"files":[{"name":"x.txt","mime":"text/plain","content":"..."}],"imagePrompt":""}
+const DESIGN_BRIEF = `APP DESIGN SYSTEM ("IronRoses MSG") — har feature isi app jaisa dikhna chahiye, generic nahi:
+- Premium dark-glass UI. Page bg var(--bg) with soft blurred glow orbs (class .blob) of var(--c1)/var(--c2)/var(--c3). Text var(--paper); muted = .muted.
+- Fonts (pack ke andar already loaded): headings/HUD labels = var(--fd) "Rajdhani" bold, letter-spacing .08-.3em, often UPPERCASE; body = var(--fs) "Sora".
+- CSS variables ready: --c1 --c2 --c3 (user ki theme ke accent colours; hard-code mat karo, sirf horror/special scenes mein allowed), --bg --bg2 --bg3, --paper, --fd, --fs.
+- Ready classes: .glass .card .grad .grad-text .btn (primary pill) .btn-ghost .chip .tap (press scale) .rise (entrance; style="--d:120") .pop-in .blob .h1 .h2 .muted .safe (safe-area padding). Inhe use karo aur apni CSS bhi likho.
+- Shapes: radius 16-24px cards, 999px pills, 1px border paper@10%, shadow 0 10px 30px -12px var(--c2). Tap targets >=44px.
+- Motion: transform/opacity, 300-600ms, cubic-bezier(.2,.8,.2,1), staggered .rise entrances, press scale .94, subtle idle animations (float/glow). Smooth, never janky.
+- Secret screen (slot=secret): pure black, blood red #ff2a4d/#d4122f, dread, heartbeat, chains imagery.
+- Polish matters: spacing rhythm, hierarchy, empty/loading/error/success states, micro-interactions, haptics via PRY.vibrate([ms,gap,ms]).`;
 
-RULES
-1) FEATURE banana ho (naya screen/tool/game/calculator/form/UI jo app mein add ho) -> "pack" bharo. Sirf sawal/baatcheet ho -> pack null.
-2) pack.html = ek single self-contained document. Sab CSS/JS inline. KOI external URL, CDN, Google Font, fetch/XHR/WebSocket/import nahi (sandbox CSP sab block karta hai). Images ke liye inline SVG/CSS/emoji use karo; bade base64 mat daalo.
-3) Mobile-first (360-420px width), safe-area padding, bade tap targets (min 44px), smooth animation (transform/opacity), dark-blue glass look (bg #0b1630, cards rgba(255,255,255,.08), blur, rounded 18px, accent #5b9bff / #ff2e63). Text Hinglish/English jaisa owner maange.
-4) Code bina error ke chalna chahiye: har cheez try/catch mein, null checks, koi undefined variable nahi, koi placeholder/TODO nahi. Poora kaam karne wala logic likho. alert/confirm/prompt use mat karo — apna UI banao.
-5) App se judne ke liye window.PRY hai: PRY.user {uid,name,username,avatar,publicId}, PRY.get(key,default), PRY.set(key,value) (sirf is user ke phone par save, JSON-safe), PRY.toast(text), PRY.close(). PRY.user/get tabhi bharose se padho jab window "pry-ready" event aa jaye (ya turant check karo: if PRY.user.uid). Ek "close/back" button zaroor do jo PRY.close() chalaye.
-6) Feature sirf is device par chalta hai. Wo doosre users ka data, chats, Firebase ya server nahi chhu sakta. Agar owner aisa kuch maange jo iske bina possible nahi (jaise sabke beech live leaderboard, real chat feature, native Android cheez), to saaf bolo reply mein, aur jitna local ho sake wo version banao ya pack null rakho aur batao ki iske liye app ka code update karna padega.
-7) Agar "current pack" diya gaya hai aur owner badlav maange -> POORA updated html wapas do (patch nahi), purana kaam karta hua hissa mat todo.
-8) Owner image maange (photo/logo/poster/art banao) -> "imagePrompt" mein detailed English prompt do, pack null. File maange (txt/json/csv/md/code/html) -> "files" mein poora content do.
-9) Attached photo/video-frames/PDF/text ko dhyan se dekho. Video ke frames time-order mein hote hain (awaaz nahi). "Aisa hi UI/feature" bole to us UI ko sahi se copy karo.
-10) Hacking, malware, doxxing, doosron ko nuksaan, phishing/fake login wala koi bhi cheez nahi banani.`;
+const PRY_API = `window.PRY (pack ke andar available): PRY.user {uid,name,username,avatar,publicId} ("pry-ready" event ke baad bharosemand), PRY.get(key,default), PRY.set(key,value) (sirf is user ke phone par persist), PRY.toast(text), PRY.vibrate(pattern ms array, jaise [60,40,120]), PRY.close().
+Pack ek sandbox mein chalta hai: internet nahi, external URL/CDN/font/fetch nahi, dusre users ka data/Firebase/chats nahi. Audio sirf WebAudio se synthesize karo (oscillator/noise) — AudioContext banao aur .resume() karo (iframe autoplay allowed hai). Image sirf inline SVG/canvas/CSS. localStorage mat use karo (PRY.set/get use karo).`;
 
-function parseBuild(raw){
+const SPEC_SYSTEM = `Tum "IronRoses MSG" app ke owner/admin ke senior product-designer + engineer ho. Owner Hinglish mein bolta hai. Tumhara kaam: owner ki maang ko BILKUL EXACT samajhna.
+Sirf ek JSON object return karo (koi markdown nahi):
+{"kind":"feature|chat|image|file","reply":"Hinglish, chhota","imagePrompt":"","files":[{"name":"","mime":"","content":""}],"spec":null|{"title":"max 40","icon":"1 emoji","slot":"home|secret","summary":"1 line","requirements":["har ek cheez jo owner ne maangi, alag-alag, verifiable"],"screens":"screens/states ka detail","behavior":"interactions, timing, logic, edge cases","visual":"exact look: layout, colours, typography, animations — upar ke design system ke hisaab se","audio":"sound/haptics plan ya none"}}
+
+DECISION RULES
+- Jo cheez app ke andar DEKHI/KHELI/SUNI jaaye (video, animation, jump scare, game, tool, screen, effect, quiz, widget) => kind="feature". Use text mein describe karke KABHI nahi taalna; asli kaam karne wala feature banana hai. "video bana de" ka matlab: real-time animated scene (canvas/CSS + synthesized sound) jo app mein play ho; .mp4 file generate nahi hoti — reply mein 1 line mein ye bata do.
+- "secret mein daal / secret mein lagao" => slot="secret" (Secret screen ka PIN + START + 5 sec countdown ke BAAD ye pack full-screen auto-play hota hai). Baaki sab => slot="home".
+- Sirf sawal/baatcheet => kind="chat". Image maange => kind="image" + detailed English imagePrompt. File (txt/json/csv/md/code) maange => kind="file" + files.
+- requirements mein owner ka har shabd cover ho. Apni taraf se extra zaroori cheezein add karo (polish, states) par owner ki maang kabhi mat badlo/ghatao. Agar current pack diya hai to requirements mein "purana kaam bana rahe" bhi likho.
+- Ambiguity ho to sabse samajhdaar assumption lo aur reply mein 1 line mein batao; sawal tabhi pucho jab bilkul aage badhna mumkin na ho.
+- Attached photos/video-frames (time-order, awaaz nahi)/PDF/text ko dhyan se dekho; "aisa hi" bole to us UI/idea ko faithfully follow karo.
+- Hacking, malware, phishing, doxxing, doosron ko nuksaan wali cheezein nahi.
+${DESIGN_BRIEF}
+${PRY_API}`;
+
+const CODE_SYSTEM = `Tum world-class front-end engineer + motion designer ho. Tumhe ek SPEC milta hai; usse ek single self-contained HTML document likhna hai jo app ke andar sandbox mein chalega.
+OUTPUT: sirf poora HTML document (<!doctype html> se </html> tak). Koi explanation, markdown ya backtick nahi.
+QUALITY BAR (isse kam nahi):
+- SPEC.requirements ki HAR line poori tarah implement ho — koi placeholder, TODO, "coming soon", ya sirf-text-description nahi. Jo maanga gaya wahi banta hai, asli kaam karta hua.
+- Design system ka sahi use (neeche), mobile-first 360-420px, app jaisa premium look: hierarchy, spacing, glow, glass, smooth animations, saare states (loading/empty/success/error).
+- Code bug-free: har JS try/catch ya null-safe, koi undefined variable nahi, event handlers sahi jude, timers/AudioContext/animationFrame proper clean up. Runtime error = fail. Pehle dimaag mein poora code chala kar dekho.
+- Logic detailed aur lamba ho sakta hai — mehnat lagao, shortcut nahi. Size ~15-120 KB theek hai; max 250 KB.
+- Close/back control zaroor (PRY.close()), secret slot mein end par "Band karo" button.
+- Current pack diya ho aur owner badlav maange to POORA updated document do, purana kaam karta hua hissa mat todo.
+- SLOT=secret ho to: poora screen pure black se shuru, koi start button nahi (auto-play, kyunki user START + countdown pehle hi kar chuka hai). Dread build-up (1.5-3 sec lagbhag khamoshi + heartbeat/low drone, halka flicker) -> phir ek achanak, ZORDAAR jump scare: aankhen chamakta daravna chehra/figure (canvas ya SVG se khud draw karo, procedural, gore nahi, real insaan nahi), tez zoom, screen shake, 2-3 sharp flashes (strobe 3/sec se zyada nahi), glitch/RGB-split, aur synthesized scream (noise burst + descending sawtooth/FM screech + sub-boom, gain automation), PRY.vibrate([...]). Phir aftermath (dheere fade, whisper-drone, red text) aur end mein "Band karo" button. Total 12-25 sec. Sound/visual dono properly timed.
+${DESIGN_BRIEF}
+${PRY_API}`;
+
+const REVIEW_SYSTEM = `Tum strict QA + code reviewer ho. Tumhe SPEC, ek HTML pack, aur (kabhi) runtime ERRORS milte hain. Kaam: HTML ko line-by-line "chala kar" check karo:
+1) SPEC.requirements ki har line implement hai? Jo adhoora/missing/sirf-text hai wo poora karo.
+2) Syntax/runtime bugs, undefined variables, galat selectors, broken handlers, AudioContext/timers ki galtiyan, mobile layout overflow, tap targets.
+3) Design system match: .glass/.card/.btn classes aur var(--c1..) ka use, fonts, spacing, animations — generic/ugly dikhe to behtar banao.
+4) Reported ERRORS ko zaroor theek karo.
+Output FORMAT (sirf ye):
+- Agar sab theek hai: pehli line exactly "OK".
+- Warna: pehli line "ISSUES: <ek line mein kya theek kiya>" aur uske baad poora FIXED HTML document (<!doctype html> se </html>). Koi markdown/backtick nahi. Pura document do, patch nahi.
+${DESIGN_BRIEF}
+${PRY_API}`;
+
+function jparse(raw){
  let t=String(raw||"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"").trim();
- let j=null;
- try{j=JSON.parse(t);}catch{const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a>=0&&b>a){try{j=JSON.parse(t.slice(a,b+1));}catch{}}}
- if(!j||typeof j!=="object"){
-  const m=t.match(/<!doctype html[\s\S]*<\/html>/i)||t.match(/<html[\s\S]*<\/html>/i);
-  if(m)return{reply:"Feature ban gaya ✅",pack:{title:"New feature",icon:"✨",summary:"",html:m[0]},files:[],imagePrompt:""};
-  return{reply:t.slice(0,1500)||"Samajh nahi aaya, ek baar phir batao?",pack:null,files:[],imagePrompt:""};
- }
- let pack=null;
- if(j.pack&&typeof j.pack==="object"&&typeof j.pack.html==="string"&&j.pack.html.trim().length>20){
-  const html=j.pack.html.slice(0,300000);
-  pack={title:String(j.pack.title||"New feature").slice(0,60),icon:String(j.pack.icon||"✨").slice(0,4),summary:String(j.pack.summary||"").slice(0,300),html};
- }
+ try{return JSON.parse(t);}catch{}
+ const a=t.indexOf("{"),b=t.lastIndexOf("}");
+ if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch{}}
+ return null;
+}
+function cleanHtml(raw){
+ let t=String(raw||"").trim().replace(/^```(?:html)?\s*/i,"").replace(/```\s*$/,"").trim();
+ const i=t.search(/<!doctype html|<html/i);
+ if(i<0)return "";
+ t=t.slice(i);
+ const e=t.toLowerCase().lastIndexOf("</html>");
+ if(e>=0)t=t.slice(0,e+7);
+ return t.slice(0,300000);
+}
+function parseSpec(raw){
+ const j=jparse(raw);
+ if(!j||typeof j!=="object")return{kind:"chat",reply:String(raw||"").slice(0,1500)||"Samajh nahi aaya, ek baar phir batao?",imagePrompt:"",files:[],spec:null};
+ const kind=["feature","chat","image","file"].includes(j.kind)?j.kind:"chat";
  const files=(Array.isArray(j.files)?j.files:[]).filter(f=>f&&typeof f.content==="string"&&typeof f.name==="string").slice(0,5).map(f=>({name:f.name.replace(/[^\w.\- ]/g,"_").slice(0,80)||"file.txt",mime:String(f.mime||"text/plain").slice(0,60),content:f.content.slice(0,400000)}));
- return{reply:String(j.reply||"Ho gaya ✅").slice(0,2000),pack,files,imagePrompt:typeof j.imagePrompt==="string"?j.imagePrompt.slice(0,1500):""};
+ let spec=null;
+ if(kind==="feature"&&j.spec&&typeof j.spec==="object"){
+  const sp=j.spec,str=(v,n)=>String(v||"").slice(0,n);
+  spec={title:str(sp.title||"New feature",40),icon:str(sp.icon||"✨",4),slot:sp.slot==="secret"?"secret":"home",summary:str(sp.summary,300),
+   requirements:(Array.isArray(sp.requirements)?sp.requirements:[]).map(x=>str(x,400)).filter(Boolean).slice(0,40),
+   screens:str(sp.screens,4000),behavior:str(sp.behavior,4000),visual:str(sp.visual,3000),audio:str(sp.audio,1500)};
+ }
+ return{kind:spec||kind!=="feature"?kind:"chat",reply:String(j.reply||"").slice(0,2000),imagePrompt:typeof j.imagePrompt==="string"?j.imagePrompt.slice(0,1500):"",files,spec};
 }
 async function geminiImage(prompt, ref, model) {
  const key=process.env.GEMINI_API_KEY;
@@ -153,21 +202,52 @@ export default async function handler(req,res) {
   if(action==="build"||action==="image"){
    if(!isOwner(user,u))return res.status(403).json({error:"Ye feature sirf admin ke liye hai."});
    if(action==="build"){
+    const ds=await db.doc("aiAdmin/main").get().catch(()=>null);
+    const dd=ds?.exists?ds.data():{};
+    const bc={...c,model:typeof dd.builderModel==="string"&&dd.builderModel.trim()?dd.builderModel.trim():"gemini-pro-latest"};
+    const stage=String(body.stage||"spec");
     const raw=Array.isArray(body.messages)?body.messages:[];
     const turns=raw.filter(t=>t&&(t.role==="user"||t.role==="assistant")&&typeof t.text==="string"&&t.text.trim()).slice(-14).map(t=>({role:t.role,text:t.text.slice(0,4000)}));
     while(turns.length&&turns[0].role!=="user")turns.shift();
-    if(!turns.length||turns.at(-1).role!=="user")return res.status(400).json({error:"Kuch likho to sahi."});
     const merged=[];for(const t of turns){const l=merged.at(-1);if(l&&l.role===t.role)l.text+=`\n${t.text}`;else merged.push({...t});}
     const cur=body.current&&typeof body.current.html==="string"?body.current:null;
-    const contents=merged.map((t,i)=>{
+    const convo=(extra)=>merged.map((t,i)=>{
      if(i!==merged.length-1)return{role:t.role==="assistant"?"model":"user",parts:[{text:t.text}]};
      const ps=partsFor(t.text,body.attachments||[],10);
      if(cur)ps.unshift({text:`CURRENT PACK (owner isi ko badalna chahta hai) title="${String(cur.title||"").slice(0,60)}":\n${cur.html.slice(0,120000)}`});
+     if(extra)ps.push({text:extra});
      return{role:"user",parts:ps};
     });
     try{
-     const out=await gemini(c,contents,24000,"",{system:BUILDER_SYSTEM,json:true,temperature:0.6});
-     return res.status(200).json(parseBuild(out));
+     if(stage==="spec"){
+      if(!merged.length||merged.at(-1).role!=="user")return res.status(400).json({error:"Kuch likho to sahi."});
+      const out=await gemini(bc,convo(""),12000,"",{system:SPEC_SYSTEM,json:true,temperature:0.4,timeout:120000});
+      return res.status(200).json(parseSpec(out));
+     }
+     if(stage==="code"){
+      if(!merged.length||merged.at(-1).role!=="user")return res.status(400).json({error:"Kuch likho to sahi."});
+      const spec=body.spec&&typeof body.spec==="object"?body.spec:null;
+      if(!spec)return res.status(400).json({error:"Spec missing."});
+      const out=await gemini(bc,convo(`SPEC (isi ko poora implement karo):\n${JSON.stringify(spec).slice(0,16000)}\nSLOT=${spec.slot==="secret"?"secret":"home"}`),48000,"",{system:CODE_SYSTEM,temperature:0.75,timeout:270000});
+      const html=cleanHtml(out);
+      if(!html)return res.status(502).json({error:"AI ne poora feature nahi diya. Ek baar phir try karo."});
+      return res.status(200).json({html});
+     }
+     if(stage==="review"){
+      const spec=body.spec&&typeof body.spec==="object"?body.spec:null;
+      const html=typeof body.html==="string"?body.html.slice(0,300000):"";
+      if(!spec||!html)return res.status(400).json({error:"Review ke liye spec/html chahiye."});
+      const errors=(Array.isArray(body.errors)?body.errors:[]).map(e=>String(e).slice(0,240)).slice(0,6);
+      const ps=partsFor(`SPEC:\n${JSON.stringify(spec).slice(0,16000)}\n\nRUNTIME ERRORS: ${errors.length?errors.join(" | "):"none reported"}\n\nHTML:\n${html}`,body.attachments||[],6);
+      const out=await gemini(bc,[{role:"user",parts:ps}],48000,"",{system:REVIEW_SYSTEM,temperature:0.2,timeout:270000});
+      const t=String(out||"").trim();
+      if(/^OK\b/i.test(t)&&!errors.length)return res.status(200).json({html,issues:"",changed:false});
+      const fixed=cleanHtml(t);
+      if(!fixed)return res.status(200).json({html,issues:"",changed:false});
+      const m=t.match(/^ISSUES:\s*(.+)$/im);
+      return res.status(200).json({html:fixed,issues:m?m[1].slice(0,300):"",changed:true});
+     }
+     return res.status(400).json({error:"Unknown stage."});
     }catch(e){return res.status(e.status||500).json({error:e.message||"Builder abhi jawab nahi de pa raha."});}
    }
    const prompt=String(body.prompt||"").trim();
