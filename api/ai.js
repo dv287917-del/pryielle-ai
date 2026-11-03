@@ -52,12 +52,12 @@ async function quota(db, uid, c) {
  if(count>=c.dailyLimit) throw Object.assign(new Error("Aaj ka AI quota khatam ho gaya. Kal phir try karo."),{status:429});
  tx.set(ref,{day,count:count+1,lastAt:now});});
 }
-async function gemini(c, contents, maxTokens, extra) {
+async function gemini(c, contents, maxTokens, extra, genExtra) {
  const key=process.env.GEMINI_API_KEY;
  if(!key) throw new Error("Vercel Environment Variable GEMINI_API_KEY missing");
  let model=c.model;
  for(let n=0;n<3;n++){
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":key},body:JSON.stringify({systemInstruction:{parts:[{text:system(c,extra)}]},contents,generationConfig:{maxOutputTokens:maxTokens,temperature:c.temperature}}),signal:AbortSignal.timeout(100000)});
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":key},body:JSON.stringify({systemInstruction:{parts:[{text:system(c,extra)}]},contents,generationConfig:{maxOutputTokens:maxTokens,temperature:c.temperature,...(genExtra||{})}}),signal:AbortSignal.timeout(100000)});
   if(r.ok){const j=await r.json();const cand=j.candidates?.[0]||{};const t=(cand.content?.parts||[]).filter(p=>typeof p.text==="string"&&!p.thought).map(p=>p.text).join("").trim();return t||"Hmm, kuch samajh nahi aaya. Ek baar phir bolo? 😅";}
   const body=await r.text().catch(()=> "");
   if(r.status===404&&model!==FALLBACK_MODEL){model=FALLBACK_MODEL;continue;}
@@ -111,6 +111,27 @@ export default async function handler(req,res) {
    const contents=merged.map((t,i)=>({role:t.role==="assistant"?"model":"user",parts:i===merged.length-1?partsFor(t.text,atts):[{text:t.text}]}));
    const text=await gemini(c,contents,atts.length?6000:LONG_RE.test(last.text)?4000:1800,`Private chat with ${String(u.displayName||"dost").slice(0,30)}. ${isOwner(user,u)?OWNER_NOTE:PUBLIC_NOTE}`);
    return res.status(200).json({text});
+  }
+  if(action==="voice"){
+   const au=body.audio;
+   if(!au||typeof au.data!=="string"||!au.data||!["audio/wav","audio/mp3","audio/ogg","audio/flac","audio/aac"].includes(au.mime))return res.status(400).json({error:"Aawaz nahi mili. Phir se bolo."});
+   if(au.data.length>3500000)return res.status(413).json({error:"Aawaz bahut lambi hai. Chhota bolo."});
+   await quota(db,user.uid,c);
+   const hist=(Array.isArray(body.messages)?body.messages:[]).filter(t=>t&&(t.role==="user"||t.role==="assistant")&&typeof t.text==="string"&&t.text.trim()).slice(-10).map(t=>({role:t.role,text:t.text.slice(0,1500)}));
+   while(hist.length&&hist[0].role!=="user")hist.shift();
+   const merged=[];for(const t of hist){const last=merged.at(-1);if(last&&last.role===t.role)last.text+=`\n${t.text}`;else merged.push({...t});}
+   while(merged.length&&merged.at(-1).role==="user")merged.pop();
+   const parts=[{inlineData:{mimeType:au.mime,data:au.data}}];let bytes=au.data.length;
+   for(const a of (Array.isArray(body.images)?body.images:[]).slice(0,2)){if(a&&a.mime==="image/jpeg"&&typeof a.data==="string"){bytes+=a.data.length;parts.push({inlineData:{mimeType:"image/jpeg",data:a.data}});}}
+   if(bytes>4200000)return res.status(413).json({error:"Data bahut bada hai. Chhota bolo."});
+   const hasImg=parts.length>1, lg=body.lang==="hi"?"User se Hindi (Devanagari) mein hi baat karo.":body.lang==="en"?"Reply only in simple English.":"User jo bhasha bole usi mein jawab do.";
+   parts.push({text:"Upar user ki aawaz hai"+(hasImg?" aur camera/screen ki photo":"")+". Pehle use ek dum sahi sun kar likho, phir jawab do. Sirf ek JSON do: {\"heard\":\"user ne jo bola uska text\",\"reply\":\"tumhara jawab\"}. Agar aawaz mein koi bol hi nahi raha ya sirf shor hai to heard aur reply dono khali rakho."});
+   const contents=[...merged.map(t=>({role:t.role==="assistant"?"model":"user",parts:[{text:t.text}]})),{role:"user",parts}];
+   const extra=`LIVE VOICE CALL with ${String(u.displayName||"dost").slice(0,30)}. Tumhara jawab text-to-speech se BOLA jayega: 1-3 chhote, natural, bolchaal ke vaakya. Koi markdown, bullet, list, code block, link ya emoji mat likho. Agar user Hindi ya Hinglish bole to jawab Devanagari Hindi mein do (taaki awaaz sahi aaye), English bole to English mein. ${lg} ${isOwner(user,u)?OWNER_NOTE:PUBLIC_NOTE}`;
+   const raw=await gemini(c,contents,hasImg?1200:700,extra,{responseMimeType:"application/json"});
+   let heard="",reply="";
+   try{const j=JSON.parse(raw.replace(/^```(?:json)?|```$/g,"").trim());heard=String(j.heard||"").trim();reply=String(j.reply||"").trim();}catch{reply=raw.replace(/[{}\\"]/g,"").trim();}
+   return res.status(200).json({heard:heard.slice(0,1500),reply:reply.slice(0,1500)});
   }
   if(action==="group"){
    const chatId=String(body.chatId||""), msgId=String(body.msgId||"");

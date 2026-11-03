@@ -177,3 +177,27 @@ Still open: banner voice notes, Admin-AI feature builder, Pro group theme broadc
 - [x] Boot, Start and Login = sapphire-sky theme with glowing IronRoses rose emblem (`components/Brand.tsx`, `roseArt.ts`); horror/witch removed from boot + start. Login = Get Started / I already have an account (both Google).
 - [x] News: frog-style arch glass card, big title, author avatar + name, optional sub-heading, cover image link, 4 colour tones (`NewsSheet` in Panels.tsx; news docs get optional lead/byAvatar/tone/image).
 - Build NOT run here (npm blocked): syntax check + parser unit test only.
+
+---
+# v2.14.0 — AI LIVE voice screen (Gemini Live jaisa) — ek hi batch mein DONE
+Entry: Pryielle AI chat -> header mein 🎙 (AudioLines) button, ya input khali ho to send ki jagah wahi Live button.
+- [x] `src/components/AiLive.tsx` — full-screen: upar menu / captions / ⋯, beech mein **app ka logo** + "Ask away, <user ka naam>!", neeche camera | screen-share | wave pill | mic | X. Black -> deep-blue gradient theme (screenshot jaisa). Status: Listening / Thinking / Speaking, logo ring + pill wave awaaz ke saath hilta hai.
+- [x] `src/lib/ai.ts` — `startEars` (mic -> auto start/stop VAD -> 16kHz WAV), `askVoice`, `speak/stopSpeak` (phone ka TTS, Devanagari = hi-IN warna en-IN).
+- [x] `api/ai.js` — naya `action:"voice"`: audio (+ camera/screenshot frame) -> Gemini -> JSON {heard, reply}; chhote bolne-layak jawab, same quota/limit/owner rules. `gemini()` ko optional `genExtra` mila.
+- [x] Transcript text chat history mein bhi save hota hai (AiChat `onTurn`).
+- Settings (menu): bhasha Auto/Hindi/English, awaaz speed. ⋯: text chat par wapas, captions saaf.
+- Interrupt: AI bolte waqt logo ya pill tap = chup + phir sunna. Mic icon = mute.
+
+## Deploy
+1. **Vercel par naya `api/ai.js` deploy zaroori** (voice action wahin hai). Pehle jaisa GEMINI_API_KEY / Admin AI ON.
+2. Naya APK (2.14.0). RECORD_AUDIO pehle se manifest mein; camera ke liye CAMERA permission aayegi (WebView prompt).
+
+## Known limits (honest)
+- Build/emulator yahan nahi chala (npm blocked): sirf syntax + WAV encoder test. Pehle build mein error aaye to yahin likho.
+- **Real live screen-share nahi** (Android WebView mein getDisplayMedia nahi): share button screenshot/photo chunne deta hai, agle sawal ke saath jata hai. Asli screen share = native MediaProjection plugin (agla batch, optional).
+- Camera = har bole hue sawal ke saath ek frame jata hai (continuous video stream nahi).
+- Awaaz phone ke system TTS ki hai; Hindi voice na ho to Settings -> Text-to-speech mein Google Hindi install karo. Behtar awaaz chahiye to Gemini TTS add ho sakta hai.
+- Bolna "turn based" hai (bolo -> 1 sec chup -> AI jawab). AI bolte waqt beech mein bolkar rokna tap se hota hai, awaaz se nahi (echo se bachne ke liye).
+
+## Agla kaam (agar chahiye)
+- [ ] Native screen-share (MediaProjection) | [ ] Gemini TTS awaaz | [ ] voice-activity barge-in | [ ] purane TODO: QR share profile, edit profile fields, banner voice, bhootni+moon, GIF fast load

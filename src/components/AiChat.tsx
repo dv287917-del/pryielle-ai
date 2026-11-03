@@ -2,9 +2,10 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import clsx from "clsx";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Share } from "@capacitor/share";
-import { ArrowUp, Camera, Copy, FileText, Globe, Mic, Paperclip, Share2, Sparkles, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, AudioLines, Camera, Copy, FileText, Globe, Mic, Paperclip, Share2, Sparkles, Square, Trash2, X } from "lucide-react";
 import { askAi, fileToAttachment, listen, loadHistory, saveHistory, speechSupported, type AiAttachment, type AiTurn } from "../lib/ai";
 import { pushBack } from "../lib/util";
+import { AiLive } from "./AiLive";
 
 type View = { role: "user" | "assistant"; text: string; imgs?: string[]; files?: string[] };
 type Pick = { id: number; att: AiAttachment; preview: string | null };
@@ -60,6 +61,9 @@ export function AiChat({ uid, name, onClose }: { uid: string; name: string; onCl
   const [listening, setListening] = useState(false);
   const [langIdx, setLangIdx] = useState(0);
   const [copied, setCopied] = useState(-1);
+  const [live, setLive] = useState(false);
+  const viewRef = useRef<View[]>([]);
+  viewRef.current = view;
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const stopMic = useRef<(() => void) | null>(null);
@@ -182,6 +186,7 @@ export function AiChat({ uid, name, onClose }: { uid: string; name: string; onCl
           <p className="ai-name truncate font-display text-lg leading-tight font-bold">Pryielle AI</p>
           <p className="truncate text-xs text-paper/50">Photo, PDF, file, voice — kuch bhi bhejo</p>
         </div>
+        <button type="button" aria-label="Live voice" onClick={() => setLive(true)} className="tap grid size-10 shrink-0 place-items-center rounded-full bg-paper/8 text-aqua"><AudioLines className="size-5" /></button>
         {view.length ? <button type="button" aria-label="Nayi chat" onClick={clear} className="tap grid size-10 shrink-0 place-items-center rounded-full bg-paper/8 text-paper/70"><Trash2 className="size-5" /></button> : null}
       </header>
 
@@ -263,12 +268,29 @@ export function AiChat({ uid, name, onClose }: { uid: string; name: string; onCl
           <button type="button" aria-label={listening ? "Mic band" : "Bol ke likho"} onClick={toggleMic} onContextMenu={(e) => { e.preventDefault(); setLangIdx((i) => (i + 1) % LANGS.length); }} className={clsx("tap relative grid size-11 shrink-0 place-items-center rounded-full", listening ? "ai-mic-on text-white" : "bg-paper/8")}>
             {listening ? <Square className="size-4 fill-current" /> : <Mic className="size-5" />}
           </button>
-          <button type="button" aria-label="Bhejo" disabled={!canSend} onClick={() => void send()} className={clsx("tap grid size-11 shrink-0 place-items-center rounded-full", canSend ? "grad text-white" : "bg-paper/8 text-paper/30")}><ArrowUp className="size-5" /></button>
+          {canSend || busy ? (
+            <button type="button" aria-label="Bhejo" disabled={!canSend} onClick={() => void send()} className={clsx("tap grid size-11 shrink-0 place-items-center rounded-full", canSend ? "grad text-white" : "bg-paper/8 text-paper/30")}><ArrowUp className="size-5" /></button>
+          ) : (
+            <button type="button" aria-label="Live voice" onClick={() => setLive(true)} className="tap grid size-11 shrink-0 place-items-center rounded-full grad text-white"><AudioLines className="size-5" /></button>
+          )}
         </div>
         <button type="button" onClick={() => setLangIdx((i) => (i + 1) % LANGS.length)} className="mt-1 text-[11px] text-paper/40">🎤 bolne ki bhasha: <b className="text-paper/70">{LANGS[langIdx][1]}</b> (badalne ke liye tap)</button>
         <input ref={fileIn} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
         <input ref={camIn} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
       </div>
+      {live ? (
+        <AiLive
+          name={name}
+          getHistory={() => turnsOf(viewRef.current)}
+          onTurn={(heard, replyText) => {
+            const done: View[] = [...viewRef.current, { role: "user", text: heard }, { role: "assistant", text: replyText }];
+            viewRef.current = done;
+            setView(done);
+            saveHistory(uid, turnsOf(done));
+          }}
+          onClose={() => setLive(false)}
+        />
+      ) : null}
     </div>
   );
 }

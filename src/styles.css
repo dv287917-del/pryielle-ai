@@ -949,3 +949,42 @@
 :root[data-perf="low"] .nitro-wrap::after { animation: none; background: linear-gradient(135deg,#f472b6,#38bdf8); }
 :root[data-motion="reduced"] .nitro-wrap::before,
 :root[data-motion="reduced"] .nitro-wrap::after { animation: none; }
+
+/* ===== v2.14.0: Pryielle AI LIVE (Gemini Live jaisa voice screen) ===== */
+.live-root { --lvl: 0; background: linear-gradient(180deg, #000 0%, #01020a 38%, #060c26 66%, #0e1d57 88%, #13286e 100%); overflow: hidden; }
+.live-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.live-video-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / 0.62), rgb(0 0 0 / 0.2) 45%, rgb(2 8 40 / 0.78)); }
+.live-panel { background: rgb(20 22 34 / 0.96); border: 1px solid rgb(255 255 255 / 0.1); box-shadow: 0 18px 50px -10px rgb(0 0 0 / 0.7); }
+.live-chip { height: 2.3rem; padding: 0 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; background: rgb(255 255 255 / 0.09); color: #e8ecff; }
+.live-chip-on { background: #a8c7fa; color: #08183d; }
+
+.live-logo-wrap { position: relative; display: grid; place-items: center; width: 8.5rem; height: 8.5rem; border-radius: 50%; transition: transform 0.35s cubic-bezier(.2,.8,.2,1), width 0.3s, height 0.3s; transform: scale(calc(1 + var(--lvl) * 0.16)); }
+.live-logo-small { width: 5rem; height: 5rem; }
+.live-logo { width: 72%; height: 72%; border-radius: 26%; object-fit: cover; box-shadow: 0 0 34px -2px rgb(255 63 140 / 0.6), 0 0 70px -6px rgb(120 140 255 / 0.55); }
+.live-ring { position: absolute; inset: 0; border-radius: 34%; border: 1.5px solid rgb(168 199 250 / 0.5); opacity: 0; }
+.live-listening .live-ring-a, .live-hearing .live-ring-a { animation: live-ring 2.6s ease-out infinite; }
+.live-hearing .live-ring-b, .live-speaking .live-ring-b { animation: live-ring 1.6s ease-out 0.4s infinite; }
+.live-speaking .live-ring-a { animation: live-ring 1.9s ease-out infinite; }
+.live-thinking .live-logo { animation: live-think 1.2s ease-in-out infinite; }
+.live-muted .live-logo { filter: grayscale(0.85) brightness(0.6); }
+@keyframes live-ring { 0% { transform: scale(0.72); opacity: 0.65; } 100% { transform: scale(1.35); opacity: 0; } }
+@keyframes live-think { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(0.94); filter: brightness(1.25); } }
+
+.live-title { font-size: clamp(1.9rem, 9.4vw, 2.7rem); line-height: 1.12; letter-spacing: -0.01em; color: #ececec; transition: opacity 0.3s; }
+.live-title-dim { opacity: 0.72; }
+.live-caps { max-height: 34dvh; scrollbar-width: none; }
+.live-caps::-webkit-scrollbar { display: none; }
+
+.live-btn { flex: 0 0 auto; display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 50%; background: #1c1c1e; color: #f1f1f4; transition: background 0.2s, transform 0.15s; }
+.live-btn:active { transform: scale(0.92); }
+.live-btn-on { background: #a8c7fa; color: #08183d; }
+.live-btn-off { background: #3b1620; color: #ffb4c0; }
+
+.live-pill { position: relative; flex: 1 1 0; min-width: 5.2rem; max-width: 7.6rem; height: 4.25rem; border-radius: 999px; overflow: hidden; background: linear-gradient(180deg, #000 0%, #020309 55%, #0b1130 100%); }
+.live-wave { position: absolute; left: -15%; right: -15%; bottom: -34%; height: calc(46% + var(--lvl) * 90%); border-radius: 50%; filter: blur(9px); transition: height 0.08s linear; }
+.live-wave-a { background: radial-gradient(ellipse at 50% 60%, #b8d4ff 0%, #7fb0f5 45%, transparent 72%); animation: live-sway 5s ease-in-out infinite; }
+.live-wave-b { left: -5%; right: -5%; bottom: -44%; background: radial-gradient(ellipse at 50% 60%, rgb(190 215 255 / 0.9) 0%, rgb(110 160 240 / 0.5) 50%, transparent 75%); animation: live-sway 3.8s ease-in-out infinite reverse; }
+.live-muted .live-wave { opacity: 0.25; }
+@keyframes live-sway { 0%, 100% { transform: translateX(-9%); } 50% { transform: translateX(9%); } }
+
+@media (prefers-reduced-motion: reduce) { .live-ring, .live-logo, .live-wave { animation: none !important; } .live-logo-wrap { transform: none; } }
