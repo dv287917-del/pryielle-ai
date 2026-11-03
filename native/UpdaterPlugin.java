@@ -1,4 +1,4 @@
-package com.pryielle.msg;
+package com.pryielle.ai;
 
 import android.content.Context;
 import android.content.Intent;
@@ -65,16 +65,53 @@ public class UpdaterPlugin extends Plugin {
                 call.reject("APK kharab hai ya adhoori download hui. Dobara try karo.");
                 return;
             }
-            if (!ctx.getPackageName().equals(a.packageName)) {
+            String expect = call.getString("expectPackage", ctx.getPackageName());
+            if (!expect.equals(a.packageName)) {
                 call.reject("Ye APK kisi aur app ki hai (" + a.packageName + ")");
                 return;
             }
             JSObject r = new JSObject();
             r.put("versionName", a.versionName == null ? "0" : a.versionName);
             r.put("versionCode", codeOf(a));
+            r.put("packageName", a.packageName);
             call.resolve(r);
         } catch (Exception e) {
             call.reject("inspect failed: " + e.getMessage());
+        }
+    }
+
+    /** another app (e.g. com.pryielle.ai) installed? needs <queries> in the manifest (patch-android.mjs adds it) */
+    @PluginMethod
+    public void appInfo(PluginCall call) {
+        JSObject r = new JSObject();
+        try {
+            Context ctx = getContext();
+            PackageInfo p = ctx.getPackageManager().getPackageInfo(call.getString("packageName", ""), 0);
+            r.put("installed", true);
+            r.put("versionName", p.versionName == null ? "0" : p.versionName);
+            r.put("versionCode", codeOf(p));
+        } catch (Exception e) {
+            r.put("installed", false);
+            r.put("versionName", "");
+            r.put("versionCode", 0);
+        }
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void launchApp(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            Intent i = ctx.getPackageManager().getLaunchIntentForPackage(call.getString("packageName", ""));
+            if (i == null) {
+                call.reject("App nahi mili");
+                return;
+            }
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("open nahi hua: " + e.getMessage());
         }
     }
 
