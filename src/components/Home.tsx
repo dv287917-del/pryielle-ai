@@ -194,7 +194,7 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
 
       {empty ? (
         <section className="center">
-          <Burst size={70} />
+          <Burst size={55} />
           <h1 className="hello">{incog ? "Incognito chat" : `${name} returns!`}</h1>
           {incog ? (
             <p className="hint">Ye chat save nahi hogi.</p>

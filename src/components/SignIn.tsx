@@ -54,7 +54,7 @@ export function SignIn() {
   return (
     <main className="signin">
       <header className="brand">
-        <Burst size={46} />
+        <Burst size={37} />
         <span>Pryielle AI</span>
       </header>
 

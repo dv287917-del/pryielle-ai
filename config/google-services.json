@@ -7,6 +7,35 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:202785610789:android:39738e398ed0a0f514b3cc",
+        "android_client_info": {
+          "package_name": "com.pryielle.ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "202785610789-pto240s1n88qtas0mg6nsjh4p76jqf42.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCloqEW-Z8Y0vn0jNoUMMoDhtnTdwJgjxI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "202785610789-pto240s1n88qtas0mg6nsjh4p76jqf42.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:202785610789:android:504868da0e72d86b14b3cc",
         "android_client_info": {
           "package_name": "com.pryielle.msg"
