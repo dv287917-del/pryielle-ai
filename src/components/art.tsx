@@ -10,7 +10,7 @@ export function Burst({ size = 64, className = "" }: { size?: number; className?
           y1={-(8 + (i % 3) * 2)}
           x2="0"
           y2={-(40 - (i % 2) * 8)}
-          stroke="#d97757"
+          style={{ stroke: "var(--accent, #d97757)" }}
           strokeWidth="5"
           strokeLinecap="round"
           transform={`rotate(${a + (i % 2) * 6})`}

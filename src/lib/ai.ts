@@ -10,7 +10,8 @@ export type AiTurn = { role: "user" | "assistant"; text: string };
 
 
 /** AI se poochho. Error aaye to samajhne layak Hinglish message ke saath throw hota hai. */
-export async function askAi(messages: AiTurn[], attachments: AiAttachment[]): Promise<string> {
+export type AiReply = { text: string; /** server ne secret code pehchana — ye turn chat history me chhupana hai */ secret: boolean };
+export async function askAi(messages: AiTurn[], attachments: AiAttachment[]): Promise<AiReply> {
   const user = auth.currentUser;
   if (!user) throw new Error("Dobara login karo.");
   try {
@@ -23,7 +24,7 @@ export async function askAi(messages: AiTurn[], attachments: AiAttachment[]): Pr
     if (r.status === 413) throw new Error("Files bahut badi hain. Chhoti photo/PDF bhejo.");
     if (r.status === 404) throw new Error("AI server nahi mila. Admin: Vercel deploy aur app ka AI URL check karo.");
     if (!r.ok) throw new Error(String(data.error || `AI request failed (${r.status})`));
-    return String(data.text ?? "").trim() || "Hmm, kuch samajh nahi aaya. Ek baar phir bolo? 😅";
+    return { text: String(data.text ?? "").trim() || "Hmm, kuch samajh nahi aaya. Ek baar phir bolo? 😅", secret: data.secret === true };
   } catch (e) {
     if (e instanceof TypeError) throw new Error("AI server tak nahi pahunch paaye. Internet check karo ya thodi der baad try karo.");
     if (e instanceof Error) throw e;

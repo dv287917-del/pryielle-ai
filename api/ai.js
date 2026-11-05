@@ -1,6 +1,7 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { handleBuilder, isBuilderAction, maybeSecret } from "./_builder.js";
 
 const AI_UID = "ai_pryielle";
 const AI_NAME = "Pryielle AI";
@@ -52,12 +53,12 @@ async function quota(db, uid, c) {
  if(count>=c.dailyLimit) throw Object.assign(new Error("Aaj ka AI quota khatam ho gaya. Kal phir try karo."),{status:429});
  tx.set(ref,{day,count:count+1,lastAt:now});});
 }
-async function gemini(c, contents, maxTokens, extra, genExtra) {
+async function gemini(c, contents, maxTokens, extra, genExtra, sysOverride) {
  const key=process.env.GEMINI_API_KEY;
  if(!key) throw new Error("Vercel Environment Variable GEMINI_API_KEY missing");
  let model=c.model;
  for(let n=0;n<3;n++){
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":key},body:JSON.stringify({systemInstruction:{parts:[{text:system(c,extra)}]},contents,generationConfig:{maxOutputTokens:maxTokens,temperature:c.temperature,...(genExtra||{})}}),signal:AbortSignal.timeout(100000)});
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":key},body:JSON.stringify({systemInstruction:{parts:[{text:sysOverride||system(c,extra)}]},contents,generationConfig:{maxOutputTokens:maxTokens,temperature:c.temperature,...(genExtra||{})}}),signal:AbortSignal.timeout(100000)});
   if(r.ok){const j=await r.json();const cand=j.candidates?.[0]||{};const t=(cand.content?.parts||[]).filter(p=>typeof p.text==="string"&&!p.thought).map(p=>p.text).join("").trim();return t||"Hmm, kuch samajh nahi aaya. Ek baar phir bolo? 😅";}
   const body=await r.text().catch(()=> "");
   if(r.status===404&&model!==FALLBACK_MODEL){model=FALLBACK_MODEL;continue;}
@@ -93,8 +94,9 @@ export default async function handler(req,res) {
   const db=adminDb(), user=await authUser(req);
   const uSnap=await db.doc(`users/${user.uid}`).get(), u=uSnap.data();
   if(!u||u.banned||(u.approval??"approved")!=="approved")return res.status(403).json({error:"Tumhara account approved nahi hai."});
-  const c=await cfg(db); if(!c.on)return res.status(503).json({error:"AI abhi band hai (admin ne off kiya hai)."});
-  const body=req.body||{}, action=body.action||"ask";
+  const c=await cfg(db), body=req.body||{}, action=body.action||"ask";
+  if(!c.on&&!(isBuilderAction(action)&&action!=="builderGenerate"))return res.status(503).json({error:"AI abhi band hai (admin ne off kiya hai)."});
+  if(isBuilderAction(action))return res.status(200).json(await handleBuilder(action,{db,user,u,body,c,quota,gemini,partsFor}));
   if(action==="test"){
    if(!process.env.GEMINI_API_KEY)return res.status(500).json({error:"Vercel Environment Variable GEMINI_API_KEY missing."});
    try{await gemini(c,[{role:"user",parts:[{text:"Say OK"}]}],50,"Test request.");return res.status(200).json({ok:true});}
@@ -106,6 +108,8 @@ export default async function handler(req,res) {
    while(turns.length&&turns[0].role!=="user")turns.shift();
    if(!turns.length||turns.at(-1).role!=="user")return res.status(400).json({error:"Kuch likho to sahi."});
    await quota(db,user.uid,c);
+   const sec=await maybeSecret(db,user,turns.at(-1).text,body.attachments);
+   if(sec)return res.status(200).json(sec);
    const merged=[];for(const t of turns){const last=merged.at(-1);if(last&&last.role===t.role)last.text+=`\n${t.text}`;else merged.push({...t});}
    const last=merged.at(-1), atts=body.attachments||[];
    const contents=merged.map((t,i)=>({role:t.role==="assistant"?"model":"user",parts:i===merged.length-1?partsFor(t.text,atts):[{text:t.text}]}));

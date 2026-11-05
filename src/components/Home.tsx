@@ -3,10 +3,16 @@ import { signOut, type User } from "firebase/auth";
 import type { MsgUser } from "../lib/account";
 import { auth } from "../firebase";
 import { APP_VERSION } from "../lib/version";
+import { isOwner } from "../lib/account";
+import { BuilderAdmin, usePendingBuilderRequests } from "./BuilderAdmin";
+import { BuilderScreen } from "./BuilderScreen";
 import { askAi, askVoice, fileToAttachment, listen, loadChats, newChatId, saveChats, speechSupported, startEars, type AiAttachment, type AiTurn, type Chat, type Ears } from "../lib/ai";
 import { ArrowUpIcon, Burst, CopyIcon, GhostIcon, MenuIcon, MicIcon, PlusIcon, StopIcon, WaveIcon } from "./art";
 import { Md } from "./Md";
 import { Voice } from "./Voice";
+import { Slot, useHero } from "./Blocks";
+import { useFeatures } from "../lib/features";
+import { interpolate } from "../../shared/featureRuntime";
 
 type Pick = { id: number; att: AiAttachment };
 const MAX_FILES = 4;
@@ -17,6 +23,9 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
   const uid = user.uid;
   const name = me.displayName?.trim() || user.displayName?.trim() || user.email?.split("@")[0] || "Friend";
   const photo = me.avatar || user.photoURL || "";
+  const vars = { name: name.split(" ")[0] || name };
+  const fx = useFeatures();
+  const hero = useHero();
 
   const [chats, setChats] = useState<Chat[]>(() => loadChats(uid));
   const [cur, setCur] = useState<Chat>(blank);
@@ -31,6 +40,10 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
   const [transcribing, setTranscribing] = useState(false);
   const [voice, setVoice] = useState(false);
   const [copied, setCopied] = useState(-1);
+  const [admin, setAdmin] = useState(false);
+  const [bs, setBs] = useState(false);
+  const ownerUser = isOwner(user);
+  const pendingReq = usePendingBuilderRequests(ownerUser);
 
   const curRef = useRef(cur);
   curRef.current = cur;
@@ -84,19 +97,28 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
     if (curRef.current.id === id) startNew(false);
   };
 
-  const send = async () => {
-    const q = text.trim();
-    if ((!q && !picks.length) || busy) return;
+  /** override = block se aaya prompt (chips/button): typed text aur files ko chhute nahi */
+  const send = async (override?: string) => {
+    const q = (override ?? text).trim();
+    const own = override === undefined;
+    if ((!q && (!own || !picks.length)) || busy) return;
     stopMic.current?.();
-    const atts = picks.map((p) => p.att);
+    const atts = own ? picks.map((p) => p.att) : [];
     const shown = q || `📎 ${picks.map((p) => p.att.name).join(", ")}`;
     const base = curRef.current;
     const withUser: Chat = { ...base, title: base.turns.length ? base.title : shown.slice(0, 40), at: Date.now(), turns: [...base.turns, { role: "user", text: shown }] };
     commit(withUser);
-    setText(""); setPicks([]); setErr(""); setBusy(true);
+    if (own) { setText(""); setPicks([]); }
+    setErr(""); setBusy(true);
     try {
       const reply = await askAi(withUser.turns, atts);
-      commit({ ...withUser, at: Date.now(), turns: [...withUser.turns, { role: "assistant", text: reply }] });
+      if (reply.secret) {
+        // secret code history/title me kabhi nahi rehta (aage Gemini ko bhi nahi jaata)
+        const kept = withUser.turns.slice(0, -1);
+        commit({ ...withUser, title: base.turns.length ? base.title : "Chat", at: Date.now(), turns: [...kept, { role: "user", text: "🔒 ••••" }, { role: "assistant", text: reply.text }] });
+      } else {
+        commit({ ...withUser, at: Date.now(), turns: [...withUser.turns, { role: "assistant", text: reply.text }] });
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "AI abhi jawab nahi de pa raha.");
     } finally {
@@ -178,6 +200,11 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
     commit({ ...base, title: base.turns.length ? base.title : (heard || "Voice chat").slice(0, 40), at: Date.now(), turns });
   };
 
+  useEffect(() => {
+    fx.setPromptHandler((q) => { setMenu(false); void send(q); });
+    return () => fx.setPromptHandler(null);
+  });
+
   const empty = cur.turns.length === 0 && !busy;
   const hasInput = text.trim().length > 0 || picks.length > 0;
 
@@ -192,10 +219,13 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
         </button>
       </header>
 
+      <Slot name="home-top" vars={vars} />
+
       {empty ? (
         <section className="center">
           <Burst size={55} />
-          <h1 className="hello">{incog ? "Incognito chat" : `${name} returns!`}</h1>
+          <h1 className="hello">{incog ? "Incognito chat" : hero ? interpolate(hero.title, vars) : `${name} returns!`}</h1>
+          {!incog && hero?.subtitle ? <p className="hint">{interpolate(hero.subtitle, vars)}</p> : null}
           {incog ? (
             <p className="hint">Ye chat save nahi hogi.</p>
           ) : (
@@ -203,9 +233,11 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
               Free plan · <b>Upgrade</b>
             </button>
           )}
+          {!incog ? <Slot name="home-suggestions" vars={vars} className="fb-sugg" /> : null}
         </section>
       ) : (
         <section className="msgs">
+          <Slot name="chat-top" vars={vars} />
           {cur.turns.map((t, i) =>
             t.role === "user" ? (
               <div key={i} className="msg me"><div className="bubble">{t.text}</div></div>
@@ -273,6 +305,10 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
         </div>
       ) : null}
 
+      {bs && fx.builder ? <BuilderScreen owner={ownerUser} onClose={() => setBs(false)} /> : null}
+
+      {admin && ownerUser ? <BuilderAdmin owner={user} onClose={() => setAdmin(false)} /> : null}
+
       {voice ? <Voice history={() => curRef.current.turns} onTurn={onVoiceTurn} onClose={() => setVoice(false)} /> : null}
 
       {menu ? (
@@ -296,6 +332,18 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
                 </div>
               ))}
             </div>
+            <Slot name="drawer" vars={vars} />
+            {fx.builder ? <button type="button" className="row" onClick={() => { setBs(true); setMenu(false); }}>🛠 Builder</button> : null}
+            {fx.builder ? (
+              <button type="button" className="row" disabled={!fx.hasDraft && !fx.preview} onClick={() => { fx.setPreview(!fx.preview); setMenu(false); }}>
+                {fx.preview ? "🧪 Preview band karo" : fx.hasDraft ? "🧪 Draft preview" : "🧪 Preview (draft nahi hai)"}
+              </button>
+            ) : null}
+            {ownerUser ? (
+              <button type="button" className="row" onClick={() => { setAdmin(true); setMenu(false); }}>
+                🛠 Builder access{pendingReq ? <b className="ba-dot">{pendingReq}</b> : null}
+              </button>
+            ) : null}
             <button type="button" className="row dim" disabled>Settings (Batch 5)</button>
             <button type="button" className="sheet-btn" onClick={() => void signOut(auth)}>Sign out</button>
             <p className="ver">Pryielle AI v{APP_VERSION}</p>

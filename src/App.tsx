@@ -7,6 +7,8 @@ import { Home } from "./components/Home";
 import { Gate } from "./components/Gate";
 import { Burst } from "./components/art";
 import { UpdateGate } from "./components/UpdateModal";
+import { FeaturesProvider } from "./lib/features";
+import { FeatureUpdateGate, PreviewBar } from "./components/Blocks";
 
 const logout = () => void signOut(auth);
 
@@ -31,10 +33,12 @@ function Signed({ user }: { user: User }) {
   if (me.approval === "pending" && !owner) return <Gate kind="pending" onLogout={logout} />;
   if (me.approval === "rejected" && !owner) return <Gate kind="rejected" detail={me.rejectReason} onLogout={logout} />;
   return (
-    <>
+    <FeaturesProvider user={user} owner={owner}>
       <Home user={user} me={me} />
+      <PreviewBar />
+      <FeatureUpdateGate />
       <UpdateGate />
-    </>
+    </FeaturesProvider>
   );
 }
 
