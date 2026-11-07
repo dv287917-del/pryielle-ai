@@ -41,46 +41,56 @@ jobs:
       - name: Clone Dobby
         run: git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
 
-      - name: Patch Dobby ASM and OSMemory
+      - name: Patch Dobby
         run: |
-          python3 -c "
-          import re, os
+          DOBBY=/tmp/Dobby
 
-          asm_files = [
-              '/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm',
-              '/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm',
-          ]
-          for path in asm_files:
-              if not os.path.exists(path):
-                  print('SKIP:', path)
-                  continue
-              with open(path) as f:
-                  c = f.read()
-              c = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', c)
-              c = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', c)
-              with open(path, 'w') as f:
-                  f.write(c)
-              print('ASM PATCHED:', path)
+          # Fix 1: @PAGE/@PAGEOFF → Linux :lo12: in arm64 asm files
+          for f in \
+            "$DOBBY/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm" \
+            "$DOBBY/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm"; do
+            if [ -f "$f" ]; then
+              sed -i 's/adrp \(x[0-9]*\), \([a-zA-Z_]*\)@PAGE/adrp \1, \2/g' "$f"
+              sed -i 's/add \(x[0-9]*\), \(x[0-9]*\), \([a-zA-Z_]*\)@PAGEOFF/add \1, \2, :lo12:\3/g' "$f"
+              echo "ASM patched: $f"
+            fi
+          done
 
-          for path in [
-              '/tmp/Dobby/source/Backend/UserMode/UnifiedInterface/platform-posix.cc',
-              '/tmp/Dobby/common/os_arch_features.h',
-          ]:
-              if not os.path.exists(path):
-                  print('SKIP:', path)
-                  continue
-              with open(path) as f:
-                  c = f.read()
-              inc = '#include \"source/Backend/UserMode/PlatformUtil/ProcessRuntimeUtility.h\"\n'
-              if inc not in c:
-                  c = inc + c
-                  with open(path, 'w') as f:
-                      f.write(c)
-                  print('OSMEMORY PATCHED:', path)
-              else:
-                  print('ALREADY PATCHED:', path)
-          print('All patches done.')
-          "
+          # Fix 2: OSMemory undefined — inject forward declaration directly into os_arch_features.h
+          ARCH_H="$DOBBY/common/os_arch_features.h"
+          if [ -f "$ARCH_H" ]; then
+            # Check if OSMemory class is already declared
+            if ! grep -q "class OSMemory" "$ARCH_H"; then
+              # Find where ProcessRuntimeUtility.h actually lives
+              PUTIL=$(find $DOBBY -name "ProcessRuntimeUtility.h" | head -1)
+              echo "Found ProcessRuntimeUtility at: $PUTIL"
+              if [ -n "$PUTIL" ]; then
+                # Get path relative to DOBBY root
+                REL=$(realpath --relative-to="$DOBBY" "$PUTIL")
+                echo "Relative path: $REL"
+                # Prepend correct relative include
+                sed -i "1s|^|#include \"$REL\"\n|" "$ARCH_H"
+                echo "OSMemory patched with real relative path"
+              else
+                echo "ProcessRuntimeUtility.h not found in Dobby"
+              fi
+            fi
+          fi
+
+          # Same fix for platform-posix.cc
+          POSIX="$DOBBY/source/Backend/UserMode/UnifiedInterface/platform-posix.cc"
+          if [ -f "$POSIX" ]; then
+            if ! grep -q "ProcessRuntimeUtility.h" "$POSIX"; then
+              PUTIL=$(find $DOBBY -name "ProcessRuntimeUtility.h" | head -1)
+              if [ -n "$PUTIL" ]; then
+                REL=$(realpath --relative-to="$(dirname $POSIX)" "$PUTIL")
+                sed -i "1s|^|#include \"$REL\"\n|" "$POSIX"
+                echo "platform-posix.cc patched"
+              fi
+            fi
+          fi
+
+          echo "All patches applied."
 
       - name: Build Dobby arm64-v8a
         run: |
