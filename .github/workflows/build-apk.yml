@@ -39,58 +39,15 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
       - name: Clone Dobby
-        run: git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
-
-      - name: Patch Dobby
         run: |
-          DOBBY=/tmp/Dobby
+          git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
+          cd /tmp/Dobby && git submodule update --init --recursive
 
-          # Fix 1: @PAGE/@PAGEOFF → Linux :lo12: in arm64 asm files
-          for f in \
-            "$DOBBY/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm" \
-            "$DOBBY/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm"; do
-            if [ -f "$f" ]; then
-              sed -i 's/adrp \(x[0-9]*\), \([a-zA-Z_]*\)@PAGE/adrp \1, \2/g' "$f"
-              sed -i 's/add \(x[0-9]*\), \(x[0-9]*\), \([a-zA-Z_]*\)@PAGEOFF/add \1, \2, :lo12:\3/g' "$f"
-              echo "ASM patched: $f"
-            fi
-          done
+      - name: Patch Dobby ASM
+        run: python3 scripts/patch_asm.py
 
-          # Fix 2: OSMemory undefined — inject forward declaration directly into os_arch_features.h
-          ARCH_H="$DOBBY/common/os_arch_features.h"
-          if [ -f "$ARCH_H" ]; then
-            # Check if OSMemory class is already declared
-            if ! grep -q "class OSMemory" "$ARCH_H"; then
-              # Find where ProcessRuntimeUtility.h actually lives
-              PUTIL=$(find $DOBBY -name "ProcessRuntimeUtility.h" | head -1)
-              echo "Found ProcessRuntimeUtility at: $PUTIL"
-              if [ -n "$PUTIL" ]; then
-                # Get path relative to DOBBY root
-                REL=$(realpath --relative-to="$DOBBY" "$PUTIL")
-                echo "Relative path: $REL"
-                # Prepend correct relative include
-                sed -i "1s|^|#include \"$REL\"\n|" "$ARCH_H"
-                echo "OSMemory patched with real relative path"
-              else
-                echo "ProcessRuntimeUtility.h not found in Dobby"
-              fi
-            fi
-          fi
-
-          # Same fix for platform-posix.cc
-          POSIX="$DOBBY/source/Backend/UserMode/UnifiedInterface/platform-posix.cc"
-          if [ -f "$POSIX" ]; then
-            if ! grep -q "ProcessRuntimeUtility.h" "$POSIX"; then
-              PUTIL=$(find $DOBBY -name "ProcessRuntimeUtility.h" | head -1)
-              if [ -n "$PUTIL" ]; then
-                REL=$(realpath --relative-to="$(dirname $POSIX)" "$PUTIL")
-                sed -i "1s|^|#include \"$REL\"\n|" "$POSIX"
-                echo "platform-posix.cc patched"
-              fi
-            fi
-          fi
-
-          echo "All patches applied."
+      - name: Patch Dobby OSMemory
+        run: python3 scripts/patch_osmem.py
 
       - name: Build Dobby arm64-v8a
         run: |
@@ -106,7 +63,6 @@ jobs:
           cmake --build /tmp/Dobby/build_arm64 -- -j$(nproc)
           mkdir -p jni/dobby/lib/arm64-v8a
           cp /tmp/Dobby/build_arm64/libdobby.a jni/dobby/lib/arm64-v8a/libdobby.a
-          echo "arm64 done"
 
       - name: Build Dobby armeabi-v7a
         run: |
@@ -122,7 +78,6 @@ jobs:
           cmake --build /tmp/Dobby/build_arm32 -- -j$(nproc)
           mkdir -p jni/dobby/lib/armeabi-v7a
           cp /tmp/Dobby/build_arm32/libdobby.a jni/dobby/lib/armeabi-v7a/libdobby.a
-          echo "armeabi-v7a done"
 
       - name: Cache Gradle
         uses: actions/cache@v4
