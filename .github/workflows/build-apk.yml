@@ -38,47 +38,6 @@ jobs:
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
-      - name: Clone Dobby
-        run: |
-          git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
-          cd /tmp/Dobby && git submodule update --init --recursive
-
-      - name: Patch Dobby ASM
-        run: python3 scripts/patch_asm.py
-
-      - name: Patch Dobby OSMemory
-        run: python3 scripts/patch_osmem.py
-
-      - name: Build Dobby arm64-v8a
-        run: |
-          cmake \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-28 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DDOBBY_DEBUG=OFF \
-            -DPlugin.Android.BionicLinkerUtil=OFF \
-            -B /tmp/Dobby/build_arm64 \
-            /tmp/Dobby
-          cmake --build /tmp/Dobby/build_arm64 -- -j$(nproc)
-          mkdir -p jni/dobby/lib/arm64-v8a
-          cp /tmp/Dobby/build_arm64/libdobby.a jni/dobby/lib/arm64-v8a/libdobby.a
-
-      - name: Build Dobby armeabi-v7a
-        run: |
-          cmake \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=armeabi-v7a \
-            -DANDROID_PLATFORM=android-28 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DDOBBY_DEBUG=OFF \
-            -DPlugin.Android.BionicLinkerUtil=OFF \
-            -B /tmp/Dobby/build_arm32 \
-            /tmp/Dobby
-          cmake --build /tmp/Dobby/build_arm32 -- -j$(nproc)
-          mkdir -p jni/dobby/lib/armeabi-v7a
-          cp /tmp/Dobby/build_arm32/libdobby.a jni/dobby/lib/armeabi-v7a/libdobby.a
-
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
