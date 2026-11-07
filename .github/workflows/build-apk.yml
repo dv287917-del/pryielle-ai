@@ -38,62 +38,51 @@ jobs:
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
-      - name: Clone and Patch Dobby
+      - name: Clone Dobby
+        run: git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
+
+      - name: Patch Dobby ASM and OSMemory
         run: |
-          git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
+          python3 -c "
+          import re, os
 
-          # Write patch script to a real file (no heredoc indent issues)
-          cat > /tmp/patch_dobby.py << 'PYEOF'
-import re, os
+          asm_files = [
+              '/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm',
+              '/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm',
+          ]
+          for path in asm_files:
+              if not os.path.exists(path):
+                  print('SKIP:', path)
+                  continue
+              with open(path) as f:
+                  c = f.read()
+              c = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', c)
+              c = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', c)
+              with open(path, 'w') as f:
+                  f.write(c)
+              print('ASM PATCHED:', path)
 
-# Fix 1: @PAGE/@PAGEOFF → Linux :lo12: syntax
-asm_files = [
-    "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm",
-    "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm",
-]
-for path in asm_files:
-    if not os.path.exists(path):
-        print(f"SKIP (not found): {path}")
-        continue
-    with open(path, 'r') as f:
-        content = f.read()
-    content = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', content)
-    content = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', content)
-    with open(path, 'w') as f:
-        f.write(content)
-    print(f"PATCHED: {path}")
+          for path in [
+              '/tmp/Dobby/source/Backend/UserMode/UnifiedInterface/platform-posix.cc',
+              '/tmp/Dobby/common/os_arch_features.h',
+          ]:
+              if not os.path.exists(path):
+                  print('SKIP:', path)
+                  continue
+              with open(path) as f:
+                  c = f.read()
+              inc = '#include \"source/Backend/UserMode/PlatformUtil/ProcessRuntimeUtility.h\"\n'
+              if inc not in c:
+                  c = inc + c
+                  with open(path, 'w') as f:
+                      f.write(c)
+                  print('OSMEMORY PATCHED:', path)
+              else:
+                  print('ALREADY PATCHED:', path)
+          print('All patches done.')
+          "
 
-# Fix 2: OSMemory undeclared — add missing include in platform-posix.cc
-posix_file = "/tmp/Dobby/source/Backend/UserMode/UnifiedInterface/platform-posix.cc"
-if os.path.exists(posix_file):
-    with open(posix_file, 'r') as f:
-        content = f.read()
-    fix = '#include "source/Backend/UserMode/PlatformUtil/ProcessRuntimeUtility.h"\n'
-    if fix not in content:
-        content = fix + content
-        with open(posix_file, 'w') as f:
-            f.write(content)
-        print(f"PATCHED: {posix_file}")
-    else:
-        print(f"ALREADY PATCHED: {posix_file}")
-
-# Fix 3: os_arch_features.h — add OSMemory forward ref if missing
-arch_file = "/tmp/Dobby/common/os_arch_features.h"
-if os.path.exists(arch_file):
-    with open(arch_file, 'r') as f:
-        content = f.read()
-    fix = '#include "source/Backend/UserMode/PlatformUtil/ProcessRuntimeUtility.h"\n'
-    if fix not in content:
-        content = fix + content
-        with open(arch_file, 'w') as f:
-            f.write(content)
-        print(f"PATCHED: {arch_file}")
-
-print("All patches done.")
-PYEOF
-          python3 /tmp/patch_dobby.py
-
-      - name: Build Dobby for arm64-v8a
+      - name: Build Dobby arm64-v8a
         run: |
           cmake \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
@@ -107,9 +96,9 @@ PYEOF
           cmake --build /tmp/Dobby/build_arm64 -- -j$(nproc)
           mkdir -p jni/dobby/lib/arm64-v8a
           cp /tmp/Dobby/build_arm64/libdobby.a jni/dobby/lib/arm64-v8a/libdobby.a
-          echo "✅ arm64-v8a done"
+          echo "arm64 done"
 
-      - name: Build Dobby for armeabi-v7a
+      - name: Build Dobby armeabi-v7a
         run: |
           cmake \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
@@ -123,7 +112,7 @@ PYEOF
           cmake --build /tmp/Dobby/build_arm32 -- -j$(nproc)
           mkdir -p jni/dobby/lib/armeabi-v7a
           cp /tmp/Dobby/build_arm32/libdobby.a jni/dobby/lib/armeabi-v7a/libdobby.a
-          echo "✅ armeabi-v7a done"
+          echo "armeabi-v7a done"
 
       - name: Cache Gradle
         uses: actions/cache@v4
