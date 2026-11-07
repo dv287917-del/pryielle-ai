@@ -38,18 +38,53 @@ jobs:
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
-      - name: Build Dobby for arm64-v8a
+      - name: Clone and Patch Dobby
         run: |
           git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
+
+          # Fix macOS @PAGE/@PAGEOFF asm syntax → Linux :lo12: syntax
+          ASM_FILE="/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm"
+
+          python3 << 'PYEOF'
+          import re
+          path = "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm"
+          with open(path, 'r') as f:
+              content = f.read()
+          content = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', content)
+          content = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', content)
+          with open(path, 'w') as f:
+              f.write(content)
+          print("ASM patch done")
+          PYEOF
+
+          # Same fix for armeabi-v7a asm if exists
+          ARM_ASM="/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm/closure_bridge_arm.asm"
+          if [ -f "$ARM_ASM" ]; then
+            python3 << 'PYEOF'
+          import re
+          path = "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm/closure_bridge_arm.asm"
+          with open(path, 'r') as f:
+              content = f.read()
+          content = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', content)
+          content = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', content)
+          with open(path, 'w') as f:
+              f.write(content)
+          print("ARM ASM patch done")
+          PYEOF
+          fi
+
+      - name: Build Dobby for arm64-v8a
+        run: |
           cmake \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-28 \
             -DCMAKE_BUILD_TYPE=Release \
             -DDOBBY_DEBUG=OFF \
+            -DPlugin.Android.BionicLinkerUtil=OFF \
             -B /tmp/Dobby/build_arm64 \
             /tmp/Dobby
-          cmake --build /tmp/Dobby/build_arm64
+          cmake --build /tmp/Dobby/build_arm64 -- -j$(nproc)
           mkdir -p jni/dobby/lib/arm64-v8a
           cp /tmp/Dobby/build_arm64/libdobby.a jni/dobby/lib/arm64-v8a/libdobby.a
           echo "✅ arm64-v8a done"
@@ -62,9 +97,10 @@ jobs:
             -DANDROID_PLATFORM=android-28 \
             -DCMAKE_BUILD_TYPE=Release \
             -DDOBBY_DEBUG=OFF \
+            -DPlugin.Android.BionicLinkerUtil=OFF \
             -B /tmp/Dobby/build_arm32 \
             /tmp/Dobby
-          cmake --build /tmp/Dobby/build_arm32
+          cmake --build /tmp/Dobby/build_arm32 -- -j$(nproc)
           mkdir -p jni/dobby/lib/armeabi-v7a
           cp /tmp/Dobby/build_arm32/libdobby.a jni/dobby/lib/armeabi-v7a/libdobby.a
           echo "✅ armeabi-v7a done"
