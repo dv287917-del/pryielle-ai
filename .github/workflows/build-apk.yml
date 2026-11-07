@@ -15,6 +15,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Extract Project ZIP
+        run: |
+          ZIP=$(find . -maxdepth 2 -name "*.zip" | head -1)
+          echo "Found: $ZIP"
+          unzip -o "$ZIP" -d extracted/
+          cp -r extracted/*/* . 2>/dev/null || cp -r extracted/* .
+          ls -la
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -47,11 +55,7 @@ jobs:
           restore-keys: gradle-
 
       - name: Make gradlew executable
-        run: |
-          if [ ! -f gradlew ]; then
-            gradle wrapper --gradle-version=8.6
-          fi
-          chmod +x gradlew
+        run: chmod +x gradlew
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace
