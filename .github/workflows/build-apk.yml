@@ -42,36 +42,56 @@ jobs:
         run: |
           git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
 
-          # Fix macOS @PAGE/@PAGEOFF asm syntax → Linux :lo12: syntax
-          ASM_FILE="/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm"
+          # Write patch script to a real file (no heredoc indent issues)
+          cat > /tmp/patch_dobby.py << 'PYEOF'
+import re, os
 
-          python3 << 'PYEOF'
-          import re
-          path = "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm"
-          with open(path, 'r') as f:
-              content = f.read()
-          content = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', content)
-          content = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', content)
-          with open(path, 'w') as f:
-              f.write(content)
-          print("ASM patch done")
-          PYEOF
+# Fix 1: @PAGE/@PAGEOFF → Linux :lo12: syntax
+asm_files = [
+    "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm",
+    "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm",
+]
+for path in asm_files:
+    if not os.path.exists(path):
+        print(f"SKIP (not found): {path}")
+        continue
+    with open(path, 'r') as f:
+        content = f.read()
+    content = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', content)
+    content = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', content)
+    with open(path, 'w') as f:
+        f.write(content)
+    print(f"PATCHED: {path}")
 
-          # Same fix for armeabi-v7a asm if exists
-          ARM_ASM="/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm/closure_bridge_arm.asm"
-          if [ -f "$ARM_ASM" ]; then
-            python3 << 'PYEOF'
-          import re
-          path = "/tmp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm/closure_bridge_arm.asm"
-          with open(path, 'r') as f:
-              content = f.read()
-          content = re.sub(r'adrp\s+(\w+),\s+(\w+)@PAGE', r'adrp \1, \2', content)
-          content = re.sub(r'add\s+(\w+),\s+(\w+),\s+(\w+)@PAGEOFF', r'add \1, \2, :lo12:\3', content)
-          with open(path, 'w') as f:
-              f.write(content)
-          print("ARM ASM patch done")
-          PYEOF
-          fi
+# Fix 2: OSMemory undeclared — add missing include in platform-posix.cc
+posix_file = "/tmp/Dobby/source/Backend/UserMode/UnifiedInterface/platform-posix.cc"
+if os.path.exists(posix_file):
+    with open(posix_file, 'r') as f:
+        content = f.read()
+    fix = '#include "source/Backend/UserMode/PlatformUtil/ProcessRuntimeUtility.h"\n'
+    if fix not in content:
+        content = fix + content
+        with open(posix_file, 'w') as f:
+            f.write(content)
+        print(f"PATCHED: {posix_file}")
+    else:
+        print(f"ALREADY PATCHED: {posix_file}")
+
+# Fix 3: os_arch_features.h — add OSMemory forward ref if missing
+arch_file = "/tmp/Dobby/common/os_arch_features.h"
+if os.path.exists(arch_file):
+    with open(arch_file, 'r') as f:
+        content = f.read()
+    fix = '#include "source/Backend/UserMode/PlatformUtil/ProcessRuntimeUtility.h"\n'
+    if fix not in content:
+        content = fix + content
+        with open(arch_file, 'w') as f:
+            f.write(content)
+        print(f"PATCHED: {arch_file}")
+
+print("All patches done.")
+PYEOF
+          python3 /tmp/patch_dobby.py
 
       - name: Build Dobby for arm64-v8a
         run: |
