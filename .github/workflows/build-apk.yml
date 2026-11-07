@@ -1,121 +1,90 @@
-name: Build APK
+name: Build FFPanel APK
+
 on:
   push:
-    branches: [main, master]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
-permissions:
-  contents: write
+
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Auto-unzip project zip
-        shell: bash
-        run: |
-          set -euo pipefail
-          Z=""; BT=0
-          for f in ./*.zip; do
-            [ -e "$f" ] || continue
-            T="$(git log -1 --format=%ct -- "$f" 2>/dev/null || true)"; T="${T:-0}"
-            if [ "$T" -ge "$BT" ]; then BT="$T"; Z="$f"; fi
-          done
-          if [ -z "$Z" ]; then echo "Root par zip nahi hai, repo ki files jaisi hain waisi use hongi."; exit 0; fi
-          echo "Zip mili: $Z"
-          rm -rf /tmp/unz && mkdir /tmp/unz && unzip -q "$Z" -d /tmp/unz
-          SRC=/tmp/unz
-          if [ ! -f "$SRC/package.json" ]; then
-            n="$(find /tmp/unz -maxdepth 3 -name package.json -not -path '*/node_modules/*' -not -path '*/functions/*' | awk '{print length($0) " " $0}' | sort -n | head -n1 | cut -d' ' -f2- || true)"
-            [ -n "$n" ] && SRC="$(dirname "$n")"
-          fi
-          if [ ! -f "$SRC/package.json" ]; then echo "::error::Zip ke andar package.json nahi mili"; exit 1; fi
-          echo "Project root in zip: $SRC"
-          rm -rf "$SRC/.github"
-          rm -rf /tmp/old && mkdir /tmp/old
-          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec mv {} /tmp/old/ \;
-          cp -a "$SRC"/. .
-          for f in /tmp/old/* /tmp/old/.[!.]*; do
-            [ -e "$f" ] || continue
-            b="$(basename "$f")"
-            case "$b" in *.zip) echo "Zip hata di: $b"; continue;; esac
-            if [ ! -e "./$b" ]; then mv "$f" "./$b"; echo "Restored from old repo: $b"; fi
-          done
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Auto-unzip project zip" || true
-          git push origin "HEAD:${{ github.ref_name }}" || echo "::warning::push nahi hua (Settings > Actions > Workflow permissions > Read and write karo)"
-      - name: Normalize project layout and locate Firebase config
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ ! -f package.json ] && [ -f pm/package.json ]; then
-            cp -a pm/. .
-          fi
-          mkdir -p config
-          if [ ! -f config/google-services.json ]; then
-            if [ -f pm/config/google-services.json ]; then
-              cp pm/config/google-services.json config/google-services.json
-            elif [ -f google-services.json ]; then
-              cp google-services.json config/google-services.json
-            else
-              candidate="$(find . -type f -name google-services.json -not -path './node_modules/*' -not -path './.git/*' -print -quit || true)"
-              if [ -n "$candidate" ]; then
-                cp "$candidate" config/google-services.json
-              fi
-            fi
-          fi
-          echo "Project root: $(pwd)"
-          echo "package.json: $(test -f package.json && echo found || echo missing)"
-          echo "Firebase config: $(test -f config/google-services.json && echo found || echo missing)"
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          node-version: 20
-      - uses: actions/setup-java@v4
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          distribution: temurin
-          java-version: 17
-      - name: Read version
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-      - name: Check Firebase file
+          gradle-version: '8.6'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK and CMake
         run: |
-          if [ ! -f config/google-services.json ]; then
-            echo "::error::config/google-services.json missing after layout normalization"
-            echo "Repository files at root:"
-            ls -la
-            echo "Possible Firebase config locations:"
-            find . -type f -name google-services.json -not -path './node_modules/*' -not -path './.git/*' -print || true
-            exit 1
-          fi
-      - name: Install
-        run: npm install --no-audit --no-fund
-      - name: Build web app
-        run: npm run build
-      - name: Add Android
+          sdkmanager --install \
+            "ndk;26.3.11579264" \
+            "cmake;3.22.1" \
+            "build-tools;34.0.0" \
+            "platforms;android-34"
+
+      - name: Build Dobby for arm64-v8a
         run: |
-          npx cap add android
-          node scripts/patch-android.mjs
-          npx cap sync android
-      - name: Use fixed signing key
+          export NDK=$ANDROID_SDK_ROOT/ndk/26.3.11579264
+          git clone https://github.com/jmpews/Dobby.git /tmp/Dobby
+          cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-28 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDOBBY_DEBUG=OFF \
+            -B /tmp/Dobby/build_arm64 \
+            /tmp/Dobby
+          cmake --build /tmp/Dobby/build_arm64
+          mkdir -p jni/dobby/lib/arm64-v8a
+          cp /tmp/Dobby/build_arm64/libdobby.a jni/dobby/lib/arm64-v8a/libdobby.a
+          echo "✅ arm64-v8a done"
+
+      - name: Build Dobby for armeabi-v7a
         run: |
-          if [ ! -f android-keystore/debug.keystore ]; then
-            echo "::error::android-keystore/debug.keystore repo ke root me nahi hai. Apni purani debug.keystore wahan upload karo."
-            echo "Root files:"; ls -la
-            exit 1
-          fi
-          mkdir -p ~/.android
-          cp android-keystore/debug.keystore ~/.android/debug.keystore
-      - name: Build APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-      - name: Collect APK and source
-        run: |
-          mkdir -p out
-          cp android/app/build/outputs/apk/debug/app-debug.apk "out/Pryielle-MSG-v${VERSION}.apk"
-          git archive --format=zip --prefix=pm/ -o "out/Pryielle-MSG-v${VERSION}-source.zip" HEAD
-      - uses: actions/upload-artifact@v4
+          export NDK=$ANDROID_SDK_ROOT/ndk/26.3.11579264
+          cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=armeabi-v7a \
+            -DANDROID_PLATFORM=android-28 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDOBBY_DEBUG=OFF \
+            -B /tmp/Dobby/build_arm32 \
+            /tmp/Dobby
+          cmake --build /tmp/Dobby/build_arm32
+          mkdir -p jni/dobby/lib/armeabi-v7a
+          cp /tmp/Dobby/build_arm32/libdobby.a jni/dobby/lib/armeabi-v7a/libdobby.a
+          echo "✅ armeabi-v7a done"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
         with:
-          name: Pryielle-MSG-v${{ env.VERSION }}
-          path: out/*
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      - name: Build Release APK
+        run: gradle assembleRelease --stacktrace
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FFPanel-release-${{ github.run_number }}
+          path: app/build/outputs/apk/release/app-release*.apk
+          retention-days: 30
