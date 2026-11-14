@@ -1,8 +1,10 @@
-name: Build APK from ZIP
+name: Build AntiTheft APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -10,13 +12,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Unzip project
+      - name: Extract Project ZIP
         run: |
-          unzip antitheft-project.zip
-          cp -r antitheft/. .
-          rm -rf antitheft antitheft-project.zip
+          ZIP=$(find . -maxdepth 2 -name "*.zip" | head -1)
+          echo "Found: $ZIP"
+          unzip -o "$ZIP" -d extracted/
+          cp -r extracted/*/* . 2>/dev/null || cp -r extracted/* .
+          ls -la
+
+      - name: Fix Gradle Wrapper
+        run: |
+          mkdir -p gradle/wrapper
+          printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.6-bin.zip\nnetworkTimeout=10000\nvalidateDistributionUrl=true\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\n' > gradle/wrapper/gradle-wrapper.properties
+          curl -sL "https://raw.githubusercontent.com/gradle/gradle/v8.6.0/gradlew" -o gradlew
+          curl -sL "https://github.com/gradle/gradle/raw/v8.6.0/gradle/wrapper/gradle-wrapper.jar" -o gradle/wrapper/gradle-wrapper.jar
+          chmod +x gradlew
+
+      - name: Fix Gradle Properties
+        run: |
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          echo "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m" >> gradle.properties
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -24,20 +43,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept SDK Licenses and Install Build Tools
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "build-tools;34.0.0" \
+            "platforms;android-34"
+          echo "sdk.dir=$ANDROID_HOME" >> local.properties
 
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.6'
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --stacktrace
 
-      - name: Upload APK artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: antitheft-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: AntiTheft-release-${{ github.run_number }}
+          path: app/build/outputs/apk/release/app-release*.apk
+          retention-days: 30
