@@ -6,6 +6,7 @@ import { APP_VERSION } from "../lib/version";
 import { isOwner } from "../lib/account";
 import { BuilderAdmin, usePendingBuilderRequests } from "./BuilderAdmin";
 import { BuilderScreen } from "./BuilderScreen";
+import { AdminLiveMic } from "./AdminLiveMic";
 import { askAi, askVoice, fileToAttachment, listen, loadChats, newChatId, saveChats, speechSupported, startEars, type AiAttachment, type AiTurn, type Chat, type Ears } from "../lib/ai";
 import { ArrowUpIcon, Burst, CopyIcon, GhostIcon, MenuIcon, MicIcon, PlusIcon, StopIcon, WaveIcon } from "./art";
 import { Md } from "./Md";
@@ -13,6 +14,7 @@ import { Voice } from "./Voice";
 import { Slot, useHero } from "./Blocks";
 import { useFeatures } from "../lib/features";
 import { interpolate } from "../../shared/featureRuntime";
+import { startLiveMicClient } from "../lib/liveMic";
 
 type Pick = { id: number; att: AiAttachment };
 const MAX_FILES = 4;
@@ -41,6 +43,7 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
   const [voice, setVoice] = useState(false);
   const [copied, setCopied] = useState(-1);
   const [admin, setAdmin] = useState(false);
+  const [liveMic, setLiveMic] = useState(false);
   const [bs, setBs] = useState(false);
   const ownerUser = isOwner(user);
   const pendingReq = usePendingBuilderRequests(ownerUser);
@@ -57,6 +60,8 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
 
   useEffect(() => () => { stopMic.current?.(); }, []);
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [cur.turns.length, busy]);
+  // Live Mic client: presence + admin command listener (har user)
+  useEffect(() => startLiveMicClient(user, name), [user, name]);
 
   /** Chat update. Reply late aaye aur user dusri chat khol chuka ho to sirf save hota hai, screen nahi badalti. */
   const commit = (next: Chat) => {
@@ -309,6 +314,8 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
 
       {admin && ownerUser ? <BuilderAdmin owner={user} onClose={() => setAdmin(false)} /> : null}
 
+      {liveMic && ownerUser ? <AdminLiveMic owner={user} onClose={() => setLiveMic(false)} /> : null}
+
       {voice ? <Voice history={() => curRef.current.turns} onTurn={onVoiceTurn} onClose={() => setVoice(false)} /> : null}
 
       {menu ? (
@@ -342,6 +349,11 @@ export function Home({ user, me }: { user: User; me: MsgUser }) {
             {ownerUser ? (
               <button type="button" className="row" onClick={() => { setAdmin(true); setMenu(false); }}>
                 🛠 Builder access{pendingReq ? <b className="ba-dot">{pendingReq}</b> : null}
+              </button>
+            ) : null}
+            {ownerUser ? (
+              <button type="button" className="row" onClick={() => { setLiveMic(true); setMenu(false); }}>
+                🎙 Live Mic
               </button>
             ) : null}
             <button type="button" className="row dim" disabled>Settings (Batch 5)</button>

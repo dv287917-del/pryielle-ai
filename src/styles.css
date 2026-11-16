@@ -229,3 +229,18 @@ button { cursor: pointer; }
 .bs-opt { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: var(--pill, 999px); padding: .4rem .3rem; font-size: .8rem; color: var(--mute); }
 .bs-opt.on { background: var(--raise); color: var(--ink); border-color: var(--accent); }
 .bs-confirm { z-index: 5; align-items: flex-end; }
+
+/* ---------- Live Mic (admin) ---------- */
+.live-mic { max-height: 88dvh; overflow-y: auto; }
+.lm-dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: #666; margin-right: .4rem; vertical-align: middle; }
+.lm-dot.ok { background: #3dce7a; box-shadow: 0 0 6px #3dce7a88; }
+.live-mic-row.hot { background: rgba(61, 206, 122, .06); }
+
+.lm-acts { display: flex; gap: .35rem; flex: none; }
+.lm-acts .ba-ok, .lm-acts .ba-no { padding: .4rem .55rem; min-width: 2.4rem; }
+.lm-preview { margin-top: .8rem; padding-top: .5rem; border-top: 1px solid var(--line); }
+.lm-photos { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.lm-photos figure { margin: 0; }
+.lm-photos img { width: 100%; border-radius: .6rem; background: #000; display: block; }
+.lm-photos figcaption { font-size: .75rem; color: var(--mute); margin-top: .2rem; text-align: center; }
+.lm-screen { width: 100%; max-height: 240px; border-radius: .6rem; background: #000; margin-top: .3rem; }

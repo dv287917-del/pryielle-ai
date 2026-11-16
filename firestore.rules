@@ -263,5 +263,46 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow write: if isAdmin();
     }
+
+    // Live Mic: presence heartbeat (har user apna; admin sab dekh sakta)
+    match /presence/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    // Admin → user mic on/off command
+    match /micControl/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Live audio chunks (user writes own stream; admin reads)
+    match /micStreams/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.chunk.size() <= 200000;
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    // Dual camera snap result (front + back jpeg base64)
+    match /deviceCapture/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    // Screen record chunks
+    match /screenStreams/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid
+        && (!('chunk' in request.resource.data) || request.resource.data.chunk.size() <= 200000);
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
   }
 }
