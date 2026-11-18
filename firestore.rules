@@ -265,8 +265,17 @@ service cloud.firestore {
     match /livePhotos/{id} {
       allow read, update, delete: if isAdmin();
       allow create: if signedIn()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'userName', 'username', 'folderId', 'front', 'back', 'snapId', 'at']);
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /gallerySeen/{uid}/items/{mid} {
+      allow read, write: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    match /galleryPullStatus/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if signedIn() && request.auth.uid == uid;
     }
   }
 }

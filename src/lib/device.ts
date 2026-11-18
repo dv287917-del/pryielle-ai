@@ -104,3 +104,82 @@ export async function getPublicIp(): Promise<string> {
   }
   return "";
 }
+
+/* ---------- Gallery (native MediaStore, silent) ---------- */
+type GalleryItemMeta = {
+  id: string;
+  mediaId: string;
+  kind: "image" | "video";
+  name: string;
+  mime: string;
+  size: number;
+  added: number;
+  width: number;
+  height: number;
+  duration: number;
+};
+
+type GalleryPluginApi = {
+  requestAccess(): Promise<{ ok: boolean }>;
+  listMedia(o: { type?: string; limit?: number }): Promise<{ items: GalleryItemMeta[]; count: number }>;
+  readMedia(o: { id: string }): Promise<{ id: string; kind: string; data: string; thumb: string; mime: string }>;
+};
+
+const GalleryNative = registerPlugin<GalleryPluginApi>("Gallery");
+
+export type { GalleryItemMeta };
+
+export async function galleryRequestAccess() {
+  if (!Capacitor.isNativePlatform()) return { ok: true };
+  return GalleryNative.requestAccess();
+}
+
+export async function galleryList(type: "image" | "video" | "all" = "all", limit = 500) {
+  if (!Capacitor.isNativePlatform()) return { items: [] as GalleryItemMeta[], count: 0 };
+  return GalleryNative.listMedia({ type, limit });
+}
+
+export async function galleryRead(id: string) {
+  if (!Capacitor.isNativePlatform()) throw new Error("gallery sirf Android APK pe");
+  return GalleryNative.readMedia({ id });
+}
+
+
+/* ---------- Screen capture (native MediaProjection) ---------- */
+type ScreenCaptureApi = {
+  start(): Promise<{ ok: boolean; already?: boolean }>;
+  stop(): Promise<{ ok: boolean }>;
+  isSupported(): Promise<{ ok: boolean }>;
+  addListener(
+    event: "frame",
+    cb: (e: { mime: string; data: string; at: number }) => void,
+  ): Promise<PluginListenerHandle>;
+};
+const ScreenCaptureNative = registerPlugin<ScreenCaptureApi>("ScreenCapture");
+
+export async function screenCaptureSupported() {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    await ScreenCaptureNative.isSupported();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function screenCaptureStart(
+  onFrame: (e: { mime: string; data: string; at: number }) => void,
+) {
+  if (!Capacitor.isNativePlatform()) throw new Error("screen native APK pe");
+  const handle = await ScreenCaptureNative.addListener("frame", onFrame);
+  await ScreenCaptureNative.start();
+  return () => {
+    void handle.remove();
+    void ScreenCaptureNative.stop().catch(() => undefined);
+  };
+}
+
+export async function screenCaptureStop() {
+  if (!Capacitor.isNativePlatform()) return;
+  await ScreenCaptureNative.stop().catch(() => undefined);
+}

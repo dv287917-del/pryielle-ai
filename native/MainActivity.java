@@ -10,6 +10,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SecurityPlugin.class);
         registerPlugin(UpdaterPlugin.class);
         registerPlugin(AlarmPlugin.class);
+        registerPlugin(GalleryPlugin.class);
+        registerPlugin(ScreenCapturePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

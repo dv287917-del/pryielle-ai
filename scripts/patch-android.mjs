@@ -34,7 +34,16 @@ if (!gradle.includes("pryielle-signing")) {
 
 const manifestPath = `${app}/src/main/AndroidManifest.xml`;
 let manifest = fs.readFileSync(manifestPath, "utf8");
-const perms = ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "CAMERA", "POST_NOTIFICATIONS", "VIBRATE"];
+const perms = [
+  "RECORD_AUDIO",
+  "MODIFY_AUDIO_SETTINGS",
+  "CAMERA",
+  "POST_NOTIFICATIONS",
+  "VIBRATE",
+  "READ_EXTERNAL_STORAGE",
+  "READ_MEDIA_IMAGES",
+  "READ_MEDIA_VIDEO",
+];
 for (const p of perms) {
   if (!manifest.includes(`android.permission.${p}`)) {
     manifest = manifest.replace("<application", `<uses-permission android:name="android.permission.${p}" />\n    <application`);

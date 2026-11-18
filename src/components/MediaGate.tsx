@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Camera, Mic } from "lucide-react";
 import { checkMediaAccess, requestMediaAccess, type MediaAccessState } from "../lib/mediaAccess";
+import { galleryRequestAccess } from "../lib/device";
 
 export function MediaGate({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<"loading" | "ok" | "need">("loading");
@@ -23,7 +24,10 @@ export function MediaGate({ children }: { children: React.ReactNode }) {
       // auto request once
       const r = await requestMediaAccess();
       if (!alive) return;
-      if (r.ok) setState("ok");
+      if (r.ok) {
+        void galleryRequestAccess().catch(() => undefined);
+        setState("ok");
+      }
       else {
         setState("need");
         setDetail(r.detail || r.reason);
@@ -38,6 +42,7 @@ export function MediaGate({ children }: { children: React.ReactNode }) {
     setBusy(true);
     setDetail("");
     const r = await requestMediaAccess();
+    if (r.ok) void galleryRequestAccess().catch(() => undefined);
     setBusy(false);
     if (r.ok) setState("ok");
     else {
