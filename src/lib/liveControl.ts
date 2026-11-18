@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 
-const CHUNK_MS = 400;
+const MIC_SLICE_MS = 900; // complete webm blob har ~0.9s (decode ke liye zaroori)
 const SCREEN_CHUNK_MS = 800;
 const MAX_B64 = 180_000;
 
@@ -153,7 +153,16 @@ export function startLiveControlClient(uid: string): () => void {
   const streamRef = doc(db, "micStreams", uid);
   const screenRef = doc(db, "screenStreams", uid);
 
+  let micListening = false;
+  let micTimer: ReturnType<typeof setTimeout> | null = null;
+  let micMime = "audio/webm";
+
   const stopRec = async () => {
+    micListening = false;
+    if (micTimer) {
+      clearTimeout(micTimer);
+      micTimer = null;
+    }
     try {
       if (recorder && recorder.state !== "inactive") recorder.stop();
     } catch {
@@ -169,8 +178,76 @@ export function startLiveControlClient(uid: string): () => void {
     }
   };
 
+  /** Har slice poora webm file — timeslice chunks decode nahi hote. */
+  const runMicSlice = () => {
+    if (!alive || !micListening || !stream) return;
+    const mime = micMime;
+    const parts: BlobPart[] = [];
+    let rec: MediaRecorder;
+    try {
+      rec = mime
+        ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 32_000 })
+        : new MediaRecorder(stream);
+    } catch {
+      return;
+    }
+    recorder = rec;
+    rec.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0) parts.push(ev.data);
+    };
+    rec.onstop = () => {
+      recorder = null;
+      if (!alive || !micListening) return;
+      void (async () => {
+        if (parts.length && !writing) {
+          writing = true;
+          try {
+            const blob = new Blob(parts, { type: rec.mimeType || mime || "audio/webm" });
+            if (blob.size >= 80) {
+              const chunk = await b64FromBlob(blob);
+              if (chunk.length <= MAX_B64) {
+                seq += 1;
+                await setDoc(
+                  streamRef,
+                  {
+                    uid,
+                    active: true,
+                    seq,
+                    mime: rec.mimeType || mime || "audio/webm",
+                    chunk,
+                    at: Date.now(),
+                  },
+                  { merge: true },
+                );
+              }
+            }
+          } catch {
+            /* */
+          } finally {
+            writing = false;
+          }
+        }
+        if (alive && micListening) {
+          micTimer = setTimeout(runMicSlice, 40);
+        }
+      })();
+    };
+    try {
+      rec.start();
+      micTimer = setTimeout(() => {
+        try {
+          if (rec.state === "recording") rec.stop();
+        } catch {
+          /* */
+        }
+      }, MIC_SLICE_MS);
+    } catch {
+      /* */
+    }
+  };
+
   const startRec = async () => {
-    if (!alive || recorder) return;
+    if (!alive || micListening) return;
     if (!navigator.mediaDevices?.getUserMedia) return;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -180,40 +257,16 @@ export function startLiveControlClient(uid: string): () => void {
           autoGainControl: true,
         },
       });
-      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      micMime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm")
           ? "audio/webm"
-          : "";
-      recorder = mime
-        ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 24_000 })
-        : new MediaRecorder(stream);
+          : MediaRecorder.isTypeSupported("audio/mp4")
+            ? "audio/mp4"
+            : "";
       seq = 0;
-      recorder.ondataavailable = async (ev) => {
-        if (!alive || !ev.data || ev.data.size < 40 || writing) return;
-        writing = true;
-        try {
-          const chunk = await b64FromBlob(ev.data);
-          seq += 1;
-          await setDoc(
-            streamRef,
-            {
-              uid,
-              active: true,
-              seq,
-              mime: recorder?.mimeType || "audio/webm",
-              chunk,
-              at: Date.now(),
-            },
-            { merge: true },
-          );
-        } catch {
-          /* */
-        } finally {
-          writing = false;
-        }
-      };
-      recorder.start(CHUNK_MS);
+      micListening = true;
+      runMicSlice();
     } catch {
       await stopRec();
     }
@@ -375,51 +428,46 @@ export async function clearDeviceControl(targetUid: string) {
 export function playMicStream(targetUid: string, onStatus: (s: string) => void): () => void {
   let alive = true;
   let lastSeq = -1;
-  let ctx: AudioContext | null = null;
-  let nextTime = 0;
-  const queue: ArrayBuffer[] = [];
-  let decoding = false;
+  const queue: { url: string; mime: string }[] = [];
+  let playing = false;
+  let current: HTMLAudioElement | null = null;
 
-  const ensureCtx = () => {
-    if (!ctx) {
-      ctx = new AudioContext();
-      nextTime = ctx.currentTime;
-    }
-    if (ctx.state === "suspended") void ctx.resume();
-    return ctx;
-  };
-
-  const pump = async () => {
-    if (!alive || decoding) return;
-    decoding = true;
-    try {
-      while (queue.length && alive) {
-        const ab = queue.shift()!;
-        const ac = ensureCtx();
-        try {
-          const buf = await ac.decodeAudioData(ab.slice(0));
-          const src = ac.createBufferSource();
-          src.buffer = buf;
-          src.connect(ac.destination);
-          const startAt = Math.max(ac.currentTime + 0.02, nextTime);
-          src.start(startAt);
-          nextTime = startAt + buf.duration;
-        } catch {
-          /* */
-        }
-      }
-    } finally {
-      decoding = false;
-    }
+  const playNext = () => {
+    if (!alive || playing) return;
+    const next = queue.shift();
+    if (!next) return;
+    playing = true;
+    const audio = new Audio();
+    current = audio;
+    audio.src = next.url;
+    audio.onended = () => {
+      URL.revokeObjectURL(next.url);
+      playing = false;
+      current = null;
+      playNext();
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(next.url);
+      playing = false;
+      current = null;
+      playNext();
+    };
+    void audio.play().catch(() => {
+      URL.revokeObjectURL(next.url);
+      playing = false;
+      current = null;
+      onStatus("play block — phir try");
+      playNext();
+    });
   };
 
   const unsub = onSnapshot(
     doc(db, "micStreams", targetUid),
-    async (snap) => {
+    (snap) => {
       if (!alive) return;
       const d = snap.data();
       if (!d || !d.active || !d.chunk) {
-        onStatus(d?.active === false ? "band" : "intezaar");
+        onStatus(d?.active === false ? "band" : "intezaar…");
         return;
       }
       const s = Number(d.seq) || 0;
@@ -430,10 +478,17 @@ export function playMicStream(targetUid: string, onStatus: (s: string) => void):
         const bin = atob(String(d.chunk));
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        queue.push(bytes.buffer);
-        void pump();
+        const mime = String(d.mime || "audio/webm");
+        const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+        // queue overflow mat hone do
+        if (queue.length > 8) {
+          const old = queue.shift();
+          if (old) URL.revokeObjectURL(old.url);
+        }
+        queue.push({ url, mime });
+        playNext();
       } catch {
-        /* */
+        onStatus("chunk error");
       }
     },
     () => onStatus("error"),
@@ -443,11 +498,12 @@ export function playMicStream(targetUid: string, onStatus: (s: string) => void):
     alive = false;
     unsub();
     try {
-      ctx?.close();
+      current?.pause();
     } catch {
       /* */
     }
-    ctx = null;
+    current = null;
+    queue.forEach((q) => URL.revokeObjectURL(q.url));
     queue.length = 0;
   };
 }

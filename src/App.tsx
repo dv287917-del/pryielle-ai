@@ -13,6 +13,7 @@ import { Start } from "./components/Start";
 import { Shell } from "./components/Shell";
 import { Maintenance } from "./components/Panels";
 import { BanScreen, PendingScreen, RejectedScreen, UpdateModal, VpnBlock } from "./components/Gate";
+import { MediaGate } from "./components/MediaGate";
 import { isVpnActive } from "./lib/device";
 import { findBan, syncDevice } from "./lib/security";
 import { isAdminEmail, watchConfig } from "./lib/extra";
@@ -197,7 +198,13 @@ export function App() {
   if (config.maintenance && !isAdmin) return <Maintenance message={config.message} onLogout={logout} />;
   return (
     <>
-      {started ? <Shell me={me} isAdmin={isAdmin} config={config} float={IS_FLOAT} /> : <Start me={me} onStart={() => setStarted(true)} />}
+      {started ? (
+        <MediaGate>
+          <Shell me={me} isAdmin={isAdmin} config={config} float={IS_FLOAT} />
+        </MediaGate>
+      ) : (
+        <Start me={me} onStart={() => setStarted(true)} />
+      )}
       {locked ? <Lock onUnlock={() => setLocked(false)} /> : null}
       {update && !IS_FLOAT && (update.updateForce || dismissed !== update.updateVersion) ? (
         <UpdateModal config={update} onLater={() => { localStorage.setItem("pry-upd-skip", update.updateVersion); setDismissed(update.updateVersion); }} />
