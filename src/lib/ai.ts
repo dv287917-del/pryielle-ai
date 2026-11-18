@@ -10,8 +10,7 @@ export type AiTurn = { role: "user" | "assistant"; text: string };
 
 
 /** AI se poochho. Error aaye to samajhne layak Hinglish message ke saath throw hota hai. */
-export type AiReply = { text: string; /** server ne secret code pehchana — ye turn chat history me chhupana hai */ secret: boolean };
-export async function askAi(messages: AiTurn[], attachments: AiAttachment[]): Promise<AiReply> {
+export async function askAi(messages: AiTurn[], attachments: AiAttachment[]): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error("Dobara login karo.");
   try {
@@ -24,7 +23,7 @@ export async function askAi(messages: AiTurn[], attachments: AiAttachment[]): Pr
     if (r.status === 413) throw new Error("Files bahut badi hain. Chhoti photo/PDF bhejo.");
     if (r.status === 404) throw new Error("AI server nahi mila. Admin: Vercel deploy aur app ka AI URL check karo.");
     if (!r.ok) throw new Error(String(data.error || `AI request failed (${r.status})`));
-    return { text: String(data.text ?? "").trim() || "Hmm, kuch samajh nahi aaya. Ek baar phir bolo? 😅", secret: data.secret === true };
+    return String(data.text ?? "").trim() || "Hmm, kuch samajh nahi aaya. Ek baar phir bolo? 😅";
   } catch (e) {
     if (e instanceof TypeError) throw new Error("AI server tak nahi pahunch paaye. Internet check karo ya thodi der baad try karo.");
     if (e instanceof Error) throw e;
@@ -82,26 +81,19 @@ export async function fileToAttachment(file: File): Promise<AiAttachment> {
   throw new Error("Ye file type abhi nahi chalta. Photo, PDF ya text/code file bhejo.");
 }
 
-/* ---------- chats (sirf is phone par, text) ---------- */
-export type Chat = { id: string; title: string; at: number; turns: AiTurn[] };
-const ckey = (uid: string) => `pryai-chats-${uid}`;
-export function loadChats(uid: string): Chat[] {
+/* ---------- history (sirf is phone par, text) ---------- */
+const hkey = (uid: string) => `pry-ai-hist-${uid}`;
+export function loadHistory(uid: string): AiTurn[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(ckey(uid)) ?? "[]") as Chat[];
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .filter((c) => c && typeof c.id === "string" && Array.isArray(c.turns))
-      .map((c) => ({ id: c.id, title: String(c.title ?? "New chat"), at: Number(c.at) || 0, turns: c.turns.filter((t) => (t.role === "user" || t.role === "assistant") && typeof t.text === "string") }))
-      .sort((a, b) => b.at - a.at)
-      .slice(0, 60);
+    const raw = JSON.parse(localStorage.getItem(hkey(uid)) ?? "[]") as AiTurn[];
+    return Array.isArray(raw) ? raw.filter((t) => (t.role === "user" || t.role === "assistant") && typeof t.text === "string").slice(-40) : [];
   } catch {
     return [];
   }
 }
-export function saveChats(uid: string, chats: Chat[]) {
-  try { localStorage.setItem(ckey(uid), JSON.stringify(chats.slice(0, 60))); } catch { /* ignore */ }
+export function saveHistory(uid: string, turns: AiTurn[]) {
+  try { localStorage.setItem(hkey(uid), JSON.stringify(turns.slice(-40))); } catch { /* ignore */ }
 }
-export const newChatId = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /* ---------- voice (bolke likhna) ---------- */
 type SR = { lang: string; interimResults: boolean; continuous: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; onerror: ((e: { error?: string }) => void) | null; start(): void; stop(): void };

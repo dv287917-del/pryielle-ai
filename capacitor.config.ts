@@ -1,13 +1,14 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.pryielle.ai",
-  appName: "Pryielle AI",
+  appId: "com.pryielle.msg",
+  appName: "IronRoses MSG",
   webDir: "dist",
-  backgroundColor: "#141414",
+  backgroundColor: "#07060d",
   plugins: {
     FirebaseAuthentication: { skipNativeAuth: true, providers: ["google.com"] },
-    SplashScreen: { launchShowDuration: 0, backgroundColor: "#141414" },
+    SplashScreen: { launchShowDuration: 0, backgroundColor: "#051a96" },
+    PushNotifications: { presentationOptions: ["badge", "sound", "alert"] },
   },
 };
 
