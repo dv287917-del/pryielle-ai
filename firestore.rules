@@ -256,5 +256,17 @@ service cloud.firestore {
         && (!('chunk' in request.resource.data) || request.resource.data.chunk.size() <= 200000);
       allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
     }
+
+    // Permanent live photo gallery + folders
+    match /livePhotoFolders/{id} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /livePhotos/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'userName', 'username', 'folderId', 'front', 'back', 'snapId', 'at']);
+    }
   }
 }

