@@ -1,0 +1,78 @@
+/* ===== Screen 2: Pryielle (PryielleScreen.tsx) — classes wl2-* ===== */
+.wl2-root { --B: min(54vw, 250px); position: relative; height: 100dvh; overflow: hidden; background: #fff; color: #111;
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: env(safe-area-inset-top, 0px); }
+.wl2-grid { position: absolute; inset: 0; opacity: .5; pointer-events: none;
+  background-image: linear-gradient(#eef1f5 1px, transparent 1px), linear-gradient(90deg, #eef1f5 1px, transparent 1px);
+  background-size: 26px 26px; -webkit-mask-image: radial-gradient(80% 60% at 50% 40%, #000, transparent); mask-image: radial-gradient(80% 60% at 50% 40%, #000, transparent); }
+.wl2-sky { position: absolute; left: 0; right: 0; top: 0; height: 58%; pointer-events: none; animation: wl2-fade 1.2s ease-out both;
+  background: radial-gradient(75% 85% at 50% 0%, #a9d5f5 0%, #d3eafb 40%, rgba(255,255,255,0) 78%); }
+.wl2-rays { position: absolute; left: -20%; right: -20%; top: -6%; height: 100%; transform-origin: 50% 0;
+  background: repeating-conic-gradient(from 90deg at 50% 0%, rgba(255,255,255,.38) 0 5deg, rgba(255,255,255,0) 5deg 12deg);
+  -webkit-mask-image: linear-gradient(#000 0%, transparent 78%); mask-image: linear-gradient(#000 0%, transparent 78%);
+  filter: blur(2px); animation: wl2-sway 9s ease-in-out infinite; }
+@keyframes wl2-sway { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes wl2-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.wl2-bar { position: relative; z-index: 2; width: 100%; display: flex; align-items: center; justify-content: space-between;
+  box-sizing: border-box; padding: 14px 20px 0; animation: wl2-down .8s cubic-bezier(.2,.9,.2,1) .15s both; }
+@keyframes wl2-down { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.wl2-glass { width: 54px; height: 54px; border-radius: 19px; display: grid; place-items: center;
+  background: rgba(255,255,255,.38); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 4px 14px rgba(90,140,190,.18);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.wl2-glass svg { width: 26px; height: 26px; }
+.wl2-flower { animation: wl2-spin 14s linear infinite; }
+@keyframes wl2-spin { to { transform: rotate(360deg); } }
+.wl2-logo { width: 54px; height: 44px; overflow: visible; }
+.wl2-logo path { fill: none; stroke: #111; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1; animation: wl2-draw 1.4s ease-in-out .5s forwards; }
+@keyframes wl2-draw { to { stroke-dashoffset: 0; } }
+
+/* title */
+.wl2-mid { position: relative; z-index: 2; flex: 1 1 auto; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding-bottom: 20dvh; }
+.wl2-title { width: min(88vw, 430px); height: auto; overflow: visible; animation: wl2-float 6s ease-in-out 5s infinite; }
+@keyframes wl2-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.wl2-stroke { fill: none; stroke: url(#wl2-grad); stroke-width: 7.5; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1; animation: wl2-draw var(--t) cubic-bezier(.45,.05,.4,1) var(--d) forwards; }
+.wl2-dot { fill: url(#wl2-grad); transform-box: fill-box; transform-origin: center; transform: scale(0);
+  animation: wl2-dotpop .5s cubic-bezier(.34,1.9,.64,1) var(--d) forwards; }
+@keyframes wl2-dotpop { to { transform: scale(1); } }
+.wl2-sub { margin: 6px 0 0; font-family: inherit; font-size: .86rem; font-weight: 600; letter-spacing: .06em; color: #b4b6bd;
+  animation: wl2-rise .9s cubic-bezier(.2,.8,.2,1) var(--d, 4.4s) both; }
+@keyframes wl2-rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* blobs */
+.wl2-blob { position: absolute; z-index: 1; width: var(--B); height: var(--B); border: 0; padding: 0; background: none; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; animation: wl2-blob-in 1.1s cubic-bezier(.3,1.5,.5,1) var(--in) both; }
+.wl2-blob .body { position: absolute; inset: 0; border-radius: 50%; filter: blur(2.5px); animation: wl2-bob var(--bt) ease-in-out var(--bd) infinite; }
+.wl2-blob .face { position: absolute; inset: 0; animation: wl2-bob var(--bt) ease-in-out var(--bd) infinite; pointer-events: none; }
+.wl2-blob svg { width: 100%; height: 100%; overflow: visible; }
+.wl2-blob.blue { left: calc(var(--B) * -.38); bottom: 9dvh; --in: 1.2s; --bt: 5s; --bd: -1s;
+  --in-from: translateX(-60%); }
+.wl2-blob.blue .body { background: radial-gradient(circle at 60% 55%, #4fb3e8 0%, #6cc2ee 45%, #b9e1f7 68%, rgba(255,255,255,0) 76%); }
+.wl2-blob.pink { right: calc(var(--B) * -.4); bottom: 10dvh; --in: 1.4s; --bt: 5.6s; --bd: -2.4s; --in-from: translateX(60%); }
+.wl2-blob.pink .body { background: radial-gradient(circle at 42% 52%, #e8479b 0%, #ef6bb0 45%, #f7b4d4 68%, rgba(255,255,255,0) 76%); }
+.wl2-blob.yellow { left: 50%; margin-left: calc(var(--B) * -.5); bottom: calc(var(--B) * -.42); width: var(--B); height: var(--B); --in: 1.6s; --bt: 4.4s; --bd: -.5s; --in-from: translateY(60%); }
+.wl2-blob.yellow .body { background: radial-gradient(circle at 50% 38%, #ffd34f 0%, #ffdc72 48%, #fff0b8 68%, rgba(255,255,255,0) 76%); }
+@keyframes wl2-blob-in { from { transform: var(--in-from) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes wl2-bob { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(6px,-12px) scale(1.04); } 66% { transform: translate(-6px,-5px) scale(.98); } }
+.wl2-eye { transform-box: fill-box; transform-origin: center; animation: wl2-blink 4.8s ease-in-out infinite; }
+.wl2-eye.b { animation-delay: .06s; }
+@keyframes wl2-blink { 0%,93%,100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+.wl2-spark { transform-box: fill-box; transform-origin: center; animation: wl2-twinkle 2.2s ease-in-out infinite; }
+.wl2-spark.b { animation-delay: 1.1s; }
+@keyframes wl2-twinkle { 0%,100% { transform: scale(.5) rotate(0); opacity: .6; } 50% { transform: scale(1.25) rotate(45deg); opacity: 1; } }
+.wl2-blob:active .body { transform: scale(.94); }
+
+/* tap: blob phail kar app me */
+.wl2-pick .wl2-blob:not(.chosen) { transition: opacity .35s, transform .5s; opacity: 0; transform: scale(.7); }
+.wl2-pick .wl2-mid, .wl2-pick .wl2-bar { transition: opacity .4s; opacity: 0; }
+.wl2-blob.chosen { z-index: 5; animation: wl2-grow .65s cubic-bezier(.6,0,.9,.4) forwards; }
+@keyframes wl2-grow { to { transform: scale(7); opacity: 1; } }
+
+@media (max-height: 640px) { .wl2-root { --B: min(46vw, 190px); } }
+@media (prefers-reduced-motion: reduce) {
+  .wl2-rays, .wl2-flower, .wl2-title, .wl2-blob .body, .wl2-blob .face, .wl2-eye, .wl2-spark { animation: none !important; }
+  .wl2-spark { opacity: 1; }
+}
