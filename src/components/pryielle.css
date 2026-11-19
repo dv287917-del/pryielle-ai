@@ -23,24 +23,30 @@
 .wl2-glass svg { width: 26px; height: 26px; }
 .wl2-flower { animation: wl2-spin 14s linear infinite; }
 @keyframes wl2-spin { to { transform: rotate(360deg); } }
-.wl2-logo { width: 54px; height: 44px; overflow: visible; }
-.wl2-logo path { fill: none; stroke: #111; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 1; stroke-dashoffset: 1; animation: wl2-draw 1.4s ease-in-out .5s forwards; }
-@keyframes wl2-draw { to { stroke-dashoffset: 0; } }
+.wl2-logo { width: 54px; height: 54px; border-radius: 15px; object-fit: cover; box-shadow: 0 8px 20px rgba(40,120,200,.35), 0 0 0 2px rgba(255,255,255,.8);
+  animation: wl2-logo-in 1s cubic-bezier(.34,1.7,.64,1) .45s both, wl2-logo-float 4s ease-in-out 1.6s infinite; }
+@keyframes wl2-logo-in { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes wl2-logo-float { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-4px) rotate(-3deg); } }
+@keyframes wl2-draw { from { opacity: 1; stroke-dashoffset: 1; } to { opacity: 1; stroke-dashoffset: 0; } }
 
 /* title */
 .wl2-mid { position: relative; z-index: 2; flex: 1 1 auto; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding-bottom: 20dvh; }
+  padding-bottom: 14dvh; }
 .wl2-title { width: min(88vw, 430px); height: auto; overflow: visible; animation: wl2-float 6s ease-in-out 5s infinite; }
 @keyframes wl2-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 .wl2-stroke { fill: none; stroke: url(#wl2-grad); stroke-width: 7.5; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 1; stroke-dashoffset: 1; animation: wl2-draw var(--t) cubic-bezier(.45,.05,.4,1) var(--d) forwards; }
+  opacity: 0; stroke-dasharray: 1; stroke-dashoffset: 1; animation: wl2-draw var(--t) cubic-bezier(.45,.05,.4,1) var(--d) forwards; }
 .wl2-dot { fill: url(#wl2-grad); transform-box: fill-box; transform-origin: center; transform: scale(0);
   animation: wl2-dotpop .5s cubic-bezier(.34,1.9,.64,1) var(--d) forwards; }
 @keyframes wl2-dotpop { to { transform: scale(1); } }
 .wl2-sub { margin: 6px 0 0; font-family: inherit; font-size: .86rem; font-weight: 600; letter-spacing: .06em; color: #b4b6bd;
   animation: wl2-rise .9s cubic-bezier(.2,.8,.2,1) var(--d, 4.4s) both; }
 @keyframes wl2-rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.wl2-start { position: relative; z-index: 6; margin-top: 26px; height: 58px; min-width: 210px; padding: 0 44px; border: 0; border-radius: 999px;
+  background: #151515; color: #fff; font: inherit; font-size: 1.15rem; font-weight: 600; box-shadow: 0 14px 28px rgba(0,0,0,.22);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; animation: wl2-rise .6s cubic-bezier(.2,.8,.2,1) var(--d, 3s) both; transition: transform .14s; }
+.wl2-start:active { transform: scale(.94); }
 
 /* blobs */
 .wl2-blob { position: absolute; z-index: 1; width: var(--B); height: var(--B); border: 0; padding: 0; background: none; cursor: pointer;
@@ -73,6 +79,9 @@
 
 @media (max-height: 640px) { .wl2-root { --B: min(46vw, 190px); } }
 @media (prefers-reduced-motion: reduce) {
+  .wl2-stroke { animation: none !important; stroke-dashoffset: 0; opacity: 1; }
+  .wl2-dot { animation: none !important; transform: none; }
+  .wl2-logo { animation: none !important; }
   .wl2-rays, .wl2-flower, .wl2-title, .wl2-blob .body, .wl2-blob .face, .wl2-eye, .wl2-spark { animation: none !important; }
   .wl2-spark { opacity: 1; }
 }

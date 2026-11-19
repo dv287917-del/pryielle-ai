@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   backgroundColor: "#07060d",
   plugins: {
     FirebaseAuthentication: { skipNativeAuth: true, providers: ["google.com"] },
-    SplashScreen: { launchShowDuration: 0, backgroundColor: "#051a96" },
+    SplashScreen: { launchShowDuration: 0, backgroundColor: "#ffffff" },
     PushNotifications: { presentationOptions: ["badge", "sound", "alert"] },
   },
 };

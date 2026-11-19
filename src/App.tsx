@@ -130,7 +130,7 @@ export function App() {
   }, [meUid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const t = window.setTimeout(() => setBooted(true), IS_FLOAT ? 0 : 1200);
+    const t = window.setTimeout(() => setBooted(true), 0);
     if (Capacitor.isNativePlatform()) {
       void StatusBar.setStyle({ style: Style.Dark }).catch(() => undefined);
       void StatusBar.setBackgroundColor({ color: "#07060d" }).catch(() => undefined);

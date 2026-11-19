@@ -70,7 +70,8 @@
 @keyframes wl-wiggle { 30% { transform: scale(1.18) rotate(-8deg); } 60% { transform: scale(.94) rotate(6deg); } }
 
 /* text + button */
-.wl-bottom { width: 100%; max-width: 420px; padding: 0 24px; flex: 0 0 auto; }
+.wl-root { box-sizing: border-box; }
+.wl-bottom { box-sizing: border-box; width: 100%; max-width: 420px; padding: 0 24px; flex: 0 0 auto; }
 .wl-title { margin: 0; font-size: 2.15rem; line-height: 1.1; font-weight: 700; letter-spacing: -.035em; color: #1b1b1d;
   animation: wl-rise .8s cubic-bezier(.2,.8,.2,1) 1.1s both; }
 .wl-sub { margin: 10px auto 0; max-width: 17.5rem; font-size: .98rem; line-height: 1.4; color: #8b8f98; text-wrap: balance;
@@ -86,15 +87,22 @@
 @keyframes wl-shine { 0% { left: -40%; } 45%,100% { left: 130%; } }
 @keyframes wl-rise { from { transform: translateY(26px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* "Get Started" dabane par */
-.wl-going { animation: wl-out .54s cubic-bezier(.5,0,.8,.35) forwards; }
-.wl-going .wl-pop { animation: wl-scatter .5s cubic-bezier(.5,0,.9,.4) forwards; }
-.wl-going .wl-btn { transform: scale(.94); }
-@keyframes wl-out { to { opacity: 0; transform: scale(1.06); filter: blur(6px); } }
-@keyframes wl-scatter { to { transform: scale(1.7); opacity: 0; } }
+/* "Get Started" dabane par: photos spiral ho kar center me, phir Screen 2 gol khulti hai */
+.wl-going .wl-orbit-in { animation: wl-suck .62s cubic-bezier(.6,0,.85,.4) forwards; }
+.wl-going .wl-center { animation: wl-center-out .62s cubic-bezier(.5,0,.8,.4) forwards; }
+.wl-going .wl-bottom { animation: wl-sink .4s ease-in forwards; }
+.wl-going .wl-halo, .wl-going .wl-ripple { opacity: 0; transition: opacity .3s; }
+@keyframes wl-suck { to { transform: rotate(160deg) scale(.04); opacity: 0; } }
+@keyframes wl-center-out { 35% { transform: scale(1.18); } to { transform: scale(0); opacity: 0; } }
+@keyframes wl-sink { to { transform: translateY(24px); opacity: 0; } }
+.wl-layer { position: fixed; inset: 0; z-index: 50; background: #fff; }
+.wl-iris { animation: wl-iris .98s cubic-bezier(.65,0,.25,1) forwards; }
+@keyframes wl-iris { from { clip-path: circle(0% at 50% 86%); } to { clip-path: circle(150% at 50% 86%); } }
 
 @media (max-height: 640px) { .wl-root { --S: min(80vw, 300px); } .wl-title { font-size: 1.8rem; } .wl-btn { height: 56px; margin-top: 22px; } }
 @media (prefers-reduced-motion: reduce) {
+  .wl-going .wl-orbit-in, .wl-going .wl-center { animation: none !important; opacity: 0; }
+  .wl-iris { animation-duration: .3s; }
   .wl-orbit-spin, .wl-ctr-spin, .wl-bob, .wl-halo, .wl-ripple, .wl-center, .wl-btn::after { animation: none !important; }
   .wl-ripple { display: none; }
 }

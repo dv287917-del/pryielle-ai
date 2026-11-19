@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStatusBar } from "./Brand";
 import type { UserDoc } from "../lib/types";
 import { buzz } from "../lib/util";
@@ -23,19 +23,23 @@ const RING: { a: number; r: number; z: number }[] = [
 export function Start({ me, onStart }: { me: UserDoc; onStart: () => void }) {
   const [going, setGoing] = useState(false);
   const [imgBad, setImgBad] = useState(false);
-  const [phase, setPhase] = useState<"welcome" | "name">("welcome");
+  const [phase, setPhase] = useState<"welcome" | "reveal" | "name">("welcome");
+  const timers = useRef<number[]>([]);
   useStatusBar("#ffffff");
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
 
   function start() {
     if (going) return;
     setGoing(true);
     buzz();
-    window.requestAnimationFrame(() => window.setTimeout(() => setPhase("name"), 540));
+    // photos center me ghoom kar sikudte hain -> Screen 2 neeche se gol ho kar khulti hai
+    timers.current.push(window.setTimeout(() => setPhase("reveal"), 380));
+    timers.current.push(window.setTimeout(() => setPhase("name"), 380 + 980));
   }
 
-  if (phase === "name") return <PryielleScreen onDone={onStart} />;
-
   return (
+    <>
+    {phase !== "name" && (
     <main className={`wl-root ${going ? "wl-going" : ""}`}>
       <div className="wl-swoosh" aria-hidden="true">
         <svg viewBox="0 0 400 800" preserveAspectRatio="none">
@@ -93,5 +97,12 @@ export function Start({ me, onStart }: { me: UserDoc; onStart: () => void }) {
         </button>
       </div>
     </main>
+    )}
+    {phase !== "welcome" && (
+      <div className={phase === "reveal" ? "wl-layer wl-iris" : "wl-layer"}>
+        <PryielleScreen onDone={onStart} />
+      </div>
+    )}
+    </>
   );
 }

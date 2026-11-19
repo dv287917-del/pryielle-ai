@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import appLogo from "../assets/brand/logo.png";
 import { useStatusBar } from "./Brand";
 import { buzz } from "../lib/util";
 import "./pryielle.css";
@@ -17,30 +18,33 @@ const STROKES: { d: string; t: number }[] = [
   { d: "M452 140 C450 100 464 44 474 32 C482 24 482 52 468 102 C462 130 466 144 480 136", t: 0.7 },
   { d: "M500 114 C526 114 540 102 532 92 C524 82 502 90 500 118 C498 144 516 152 538 136", t: 0.7 },
 ];
-const START = 0.9; // likhna shuru hone ka delay (s)
-const GAP = 0.08;
+const START = 0.4; // likhna shuru hone ka delay (s)
+const GAP = 0.03;
+const SPEED = 0.4; // chhota = tez likhai
 const TIMING = (() => {
   let at = START;
   return STROKES.map((s) => {
     const d = at;
-    at += s.t + GAP;
+    at += s.t * SPEED + GAP;
     return d;
   });
 })();
-const WRITE_END = TIMING[TIMING.length - 1] + STROKES[STROKES.length - 1].t;
-const DOT_AT = TIMING[6] + STROKES[6].t; // 'i' ke baad dot
+const WRITE_END = TIMING[TIMING.length - 1] + STROKES[STROKES.length - 1].t * SPEED;
+const DOT_AT = TIMING[6] + STROKES[6].t * SPEED; // 'i' ke baad dot
 
 type Pick = "blue" | "pink" | "yellow";
 
 export function PryielleScreen({ onDone }: { onDone: () => void }) {
   const [pick, setPick] = useState<Pick | null>(null);
+  const timer = useRef<number | undefined>(undefined);
   useStatusBar("#cfe8fb");
+  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   function choose(p: Pick) {
     if (pick) return;
     setPick(p);
     buzz();
-    window.setTimeout(onDone, 620);
+    timer.current = window.setTimeout(onDone, 620);
   }
 
   return (
@@ -57,9 +61,7 @@ export function PryielleScreen({ onDone }: { onDone: () => void }) {
             <circle cx="16" cy="16" r="2" fill="#fff" stroke="none" />
           </svg>
         </div>
-        <svg className="wl2-logo" viewBox="0 0 48 42" aria-hidden="true">
-          <path pathLength={1} d="M4 34 C4 14 14 2 18 12 C22 26 8 40 16 34 C22 30 26 14 30 6 C34 0 36 14 32 28 C30 38 40 36 44 28" />
-        </svg>
+        <img className="wl2-logo" src={appLogo} alt="Pryielle" draggable={false} />
         <div className="wl2-glass" aria-hidden="true">
           <svg viewBox="0 0 32 32" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round">
             <path d="M8 12 H24" /><path d="M8 20 H18" />
@@ -76,11 +78,14 @@ export function PryielleScreen({ onDone }: { onDone: () => void }) {
             </linearGradient>
           </defs>
           {STROKES.map((s, i) => (
-            <path key={i} className="wl2-stroke" pathLength={1} d={s.d} style={{ "--d": `${TIMING[i]}s`, "--t": `${s.t}s` } as never} />
+            <path key={i} className="wl2-stroke" pathLength={1} d={s.d} style={{ "--d": `${TIMING[i]}s`, "--t": `${(s.t * SPEED).toFixed(2)}s` } as never} />
           ))}
           <circle className="wl2-dot" cx="298" cy="62" r="5.2" style={{ "--d": `${DOT_AT}s` } as never} />
         </svg>
-        <p className="wl2-sub" style={{ "--d": `${WRITE_END + 0.1}s` } as never}>HOW YOU FEELING TODAY?</p>
+        <p className="wl2-sub" style={{ "--d": `${WRITE_END + 0.05}s` } as never}>HOW YOU FEELING TODAY?</p>
+        <button type="button" className="wl2-start" onClick={() => choose("yellow")} style={{ "--d": `${WRITE_END + 0.2}s` } as never}>
+          Start
+        </button>
       </div>
 
       <button type="button" aria-label="Happy" className={`wl2-blob blue ${pick === "blue" ? "chosen" : ""}`} onClick={() => choose("blue")}>
