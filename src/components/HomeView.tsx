@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { Check, ChevronRight, Copy, KeyRound, Lock, Megaphone, Search, ShieldCheck, Sparkles, SquarePlay, Users } from "lucide-react";
 import { STATUS_META, type Presence, type UserDoc } from "../lib/types";
 import { Avatar, Badges } from "./ui";
+import { PryBlob, usePryTheme } from "./PryArt";
 
 type Go = "chats" | "find" | "squads" | "me";
 
@@ -39,8 +40,16 @@ function useCountUp(to: number, ms = 750) {
   return v;
 }
 
-function Stat({ label, value, hot, onClick }: { label: string; value: number; hot?: boolean; onClick: () => void }) {
+function Stat({ label, value, hot, onClick, tone }: { label: string; value: number; hot?: boolean; onClick: () => void; tone?: "b" | "p" | "y" }) {
   const n = useCountUp(value);
+  if (tone) {
+    return (
+      <button type="button" onClick={onClick} className={clsx("tap pry-stat rise", tone)} style={delay(tone === "b" ? 90 : tone === "p" ? 150 : 210)}>
+        <b className={hot ? "text-hot" : "text-paper"}>{n}</b>
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-paper/55">{hot ? <i className="live-dot" /> : null}{label}</span>
+      </button>
+    );
+  }
   return (
     <button type="button" onClick={onClick} className="tap flex flex-col items-start gap-1.5 px-4 py-3.5 text-left">
       <span className={clsx("font-display text-[1.9rem] leading-none font-bold tabular-nums", hot ? "text-hot" : "text-paper")}>{n}</span>
@@ -51,10 +60,10 @@ function Stat({ label, value, hot, onClick }: { label: string; value: number; ho
   );
 }
 
-function ListRow({ icon, label, hint, onClick, tone }: { icon: ReactNode; label: string; hint?: string; onClick: () => void; tone?: string }) {
+function ListRow({ icon, label, hint, onClick, tone, tint }: { icon: ReactNode; label: string; hint?: string; onClick: () => void; tone?: string; tint?: "blue" | "pink" | "yellow" | "lav" }) {
   return (
     <button type="button" onClick={onClick} className="tap flex h-14 w-full items-center gap-3 px-4 text-left">
-      <span className={clsx("grid size-8 shrink-0 place-items-center rounded-lg bg-paper/8", tone)}>{icon}</span>
+      {tint ? <span className={clsx("pry-ic-b", tint)}>{icon}</span> : <span className={clsx("grid size-8 shrink-0 place-items-center rounded-lg bg-paper/8", tone)}>{icon}</span>}
       <span className="min-w-0 flex-1 truncate text-[0.95rem] font-semibold">{label}{hint ? <span className="ml-2 text-xs font-medium text-hot">{hint}</span> : null}</span>
       <ChevronRight className="size-4 shrink-0 text-paper/35" />
     </button>
@@ -68,6 +77,7 @@ export function HomeView(p: {
   onTab: (t: Go) => void; onNewSquad: () => void; onJoin: () => void; onSecret: () => void; onAi: () => void; onAdmin: () => void; onYoutube: () => void; onStatus: (s: Presence) => void;
 }) {
   const { me } = p;
+  const pry = usePryTheme();
   const keys = Object.keys(STATUS_META) as Presence[];
   const [opt, setOpt] = useState<Presence | null>(null);
   useEffect(() => setOpt(null), [me.status]);
@@ -87,36 +97,63 @@ export function HomeView(p: {
 
   return (
     <div className="hv">
-      <header className="rise flex items-center justify-between gap-3 pt-1">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-paper/50">{greeting()}</p>
-          <h1 className="truncate font-display text-[2.1rem] leading-[1.05] font-bold">{me.displayName}</h1>
-        </div>
-        <button type="button" className="tap shrink-0" aria-label="Profile" onClick={() => p.onTab("me")}>
-          <Avatar src={me.avatar} name={me.displayName} size="md" live />
-        </button>
-      </header>
+      {pry ? (
+        <header className="pry-hero">
+          <i className="pry-hero-rays" />
+          <div className="pry-hero-top">
+            <div className="min-w-0">
+              <p className="pry-hello"><span className="pry-wave">👋</span> {greeting()}</p>
+              <h1 className="pry-name truncate font-display">{me.displayName}</h1>
+              <p className="pry-chip"><i style={{ background: STATUS_DOT[cur] }} />{STATUS_META[cur].label}</p>
+            </div>
+            <button type="button" className="tap pry-avatar" aria-label="Profile" onClick={() => p.onTab("me")}>
+              <Avatar src={me.avatar} name={me.displayName} size="lg" />
+            </button>
+          </div>
+          <PryBlob kind="yellow" className="abs hb3" />
+          <PryBlob kind="blue" className="abs hb1" />
+          <PryBlob kind="pink" className="abs hb2" />
+        </header>
+      ) : (
+        <header className="rise flex items-center justify-between gap-3 pt-1">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-paper/50">{greeting()}</p>
+            <h1 className="truncate font-display text-[2.1rem] leading-[1.05] font-bold">{me.displayName}</h1>
+          </div>
+          <button type="button" className="tap shrink-0" aria-label="Profile" onClick={() => p.onTab("me")}>
+            <Avatar src={me.avatar} name={me.displayName} size="md" live />
+          </button>
+        </header>
+      )}
 
       {p.stories}
 
-      <section className="rise card grid grid-cols-3 divide-x divide-paper/8 overflow-hidden" style={delay(70)}>
-        <Stat label="Chats" value={p.chatCount} onClick={() => p.onTab("chats")} />
-        <Stat label="Unread" value={p.unread} hot={p.unread > 0} onClick={() => p.onTab("chats")} />
-        <Stat label="Squads" value={p.squadCount} onClick={() => p.onTab("squads")} />
-      </section>
+      {pry ? (
+        <section className="pry-stats">
+          <Stat tone="b" label="Chats" value={p.chatCount} onClick={() => p.onTab("chats")} />
+          <Stat tone="p" label="Unread" value={p.unread} hot={p.unread > 0} onClick={() => p.onTab("chats")} />
+          <Stat tone="y" label="Squads" value={p.squadCount} onClick={() => p.onTab("squads")} />
+        </section>
+      ) : (
+        <section className="rise card grid grid-cols-3 divide-x divide-paper/8 overflow-hidden" style={delay(70)}>
+          <Stat label="Chats" value={p.chatCount} onClick={() => p.onTab("chats")} />
+          <Stat label="Unread" value={p.unread} hot={p.unread > 0} onClick={() => p.onTab("chats")} />
+          <Stat label="Squads" value={p.squadCount} onClick={() => p.onTab("squads")} />
+        </section>
+      )}
 
       {p.banner ? (
-        <div className="rise flex items-start gap-3 rounded-2xl border border-hot/25 bg-hot/8 p-3.5" style={delay(110)}>
+        <div className={pry ? "rise pry-banner" : "rise flex items-start gap-3 rounded-2xl border border-hot/25 bg-hot/8 p-3.5"} style={delay(110)}>
           <Megaphone className="mt-0.5 size-[1.1rem] shrink-0 text-hot" />
           <p className="min-w-0 flex-1 text-sm leading-snug font-medium break-words whitespace-pre-wrap">{p.banner}</p>
         </div>
       ) : null}
 
-      <section className="rise grid grid-cols-3 gap-2.5" style={delay(150)}>
+      <section className={pry ? "rise pry-acts" : "rise grid grid-cols-3 gap-2.5"} style={delay(270)}>
         {actions.map((a) => {
           const Icon = a.icon;
           return (
-            <button key={a.label} type="button" onClick={a.run} className={clsx("tap flex flex-col items-center gap-2 rounded-2xl px-2 py-3.5 text-[0.8rem] font-semibold", a.primary ? "grad text-white shadow-[0_8px_24px_-10px_var(--c2)]" : "card text-paper/85")}>
+            <button key={a.label} type="button" onClick={a.run} className={pry ? clsx("tap pry-act", a.primary && "primary") : clsx("tap flex flex-col items-center gap-2 rounded-2xl px-2 py-3.5 text-[0.8rem] font-semibold", a.primary ? "grad text-white shadow-[0_8px_24px_-10px_var(--c2)]" : "card text-paper/85")}>
               <Icon className="size-5" strokeWidth={2} />
               {a.label}
             </button>
@@ -124,8 +161,8 @@ export function HomeView(p: {
         })}
       </section>
 
-      <section className="rise" style={delay(190)}>
-        <p className="mb-2 text-xs font-semibold text-paper/45">Status</p>
+      <section className="rise" style={delay(330)}>
+        <p className={pry ? "pry-sec" : "mb-2 text-xs font-semibold text-paper/45"}>Status</p>
         <div className="seg card" style={{ "--n": keys.length, "--i": Math.max(0, idx) } as CSSProperties}>
           <i className="seg-thumb" style={{ opacity: idx < 0 ? 0 : 1 }} />
           {keys.map((s) => (
@@ -138,13 +175,13 @@ export function HomeView(p: {
       </section>
 
       {p.requestCount > 0 ? (
-        <section className="rise" style={delay(220)}>
-          <p className="mb-2 text-xs font-semibold text-paper/45">Message requests · {p.requestCount}</p>
+        <section className="rise" style={delay(380)}>
+          <p className={pry ? "pry-sec" : "mb-2 text-xs font-semibold text-paper/45"}>Message requests · {p.requestCount}</p>
           {p.requests}
         </section>
       ) : null}
 
-      <section className="rise card divide-y divide-paper/8 overflow-hidden" style={delay(250)}>
+      <section className="rise card divide-y divide-paper/8 overflow-hidden" style={delay(430)}>
         <div className="flex items-center gap-3 px-4 py-3.5">
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">@{me.username}<Badges u={me} /></p>
@@ -155,10 +192,10 @@ export function HomeView(p: {
             {copied ? "Copied" : `ID ${me.publicId}`}
           </button>
         </div>
-        <ListRow icon={<Sparkles className="size-4" />} label="Pryielle AI" hint="Photo, file, voice" tone="text-aqua" onClick={p.onAi} />
-        <ListRow icon={<Lock className="size-4" />} label="Secret" tone="text-rose" onClick={p.onSecret} />
-      <ListRow icon={<SquarePlay className="size-4" />} label="YouTube" hint="Long + Shorts" onClick={p.onYoutube} />
-        {p.isAdmin ? <ListRow icon={<ShieldCheck className="size-4" />} label="Admin panel" hint={p.maintenance ? "Maintenance ON" : undefined} tone="text-hot" onClick={p.onAdmin} /> : null}
+        <ListRow icon={<Sparkles className="size-4" />} label="Pryielle AI" hint="Photo, file, voice" tone="text-aqua" tint={pry ? "blue" : undefined} onClick={p.onAi} />
+        <ListRow icon={<Lock className="size-4" />} label="Secret" tone="text-rose" tint={pry ? "pink" : undefined} onClick={p.onSecret} />
+      <ListRow icon={<SquarePlay className="size-4" />} label="YouTube" hint="Long + Shorts" tint={pry ? "yellow" : undefined} onClick={p.onYoutube} />
+        {p.isAdmin ? <ListRow icon={<ShieldCheck className="size-4" />} label="Admin panel" hint={p.maintenance ? "Maintenance ON" : undefined} tone="text-hot" tint={pry ? "lav" : undefined} onClick={p.onAdmin} /> : null}
         {p.floatBtn}
       </section>
     </div>

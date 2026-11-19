@@ -38,7 +38,7 @@ export function Me({ me, sound, onSound, alerts, onAlerts, isAdmin, onAdmin, onP
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
-  const [theme, setTheme] = useState(localStorage.getItem("pry-theme") ?? "haunted");
+  const [theme, setTheme] = useState(localStorage.getItem("pry-theme") ?? "pryielle");
   const [amoled, setAmoled] = useState(localStorage.getItem("pry-amoled") === "1");
   const [pin, setPinOn] = useState(hasPin());
   const [horror, setHorror] = useState(!sfx.isMuted());

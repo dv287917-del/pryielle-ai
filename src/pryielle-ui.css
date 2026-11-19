@@ -1,0 +1,257 @@
+/* =====================================================================
+   PRYIELLE LIGHT UI — loading screen (Start / PryielleScreen) wala look
+   poore main app ke liye. Sirf `.pry-ui` ke andar lagta hai (Shell me),
+   isliye Admin / Secret / Login / Lock jaisi screens bilkul waisi hi rehti hain.
+   Sab animations sirf transform + opacity (halke). Classes: pry-*
+   ===================================================================== */
+
+/* Shell ke bahar ki screens (Login, Lock, Admin, Secret...) purane dark rang hi dekhein */
+:root[data-theme="pryielle"] { --c1: #ff5a1f; --c2: #e11d48; --c3: #7c3aed; --bg: #08040b; --bg2: #100814; --bg3: #1a0d20; }
+
+/* ---------- tokens ---------- */
+.pry-ui {
+  --c1: #3aa8ec; --c2: #6f86f2; --c3: #e95fae;
+  --bg: #ffffff; --bg2: #f5f8fd; --bg3: #eef3fa;
+  --color-ink: #ffffff; --color-deep: #f7faff; --color-card: #eef3fa;
+  --color-paper: #14161d;
+  --color-hot: #1b95e6; --color-rose: #e8479b; --color-violet: #7a6cf0; --color-aqua: #1593c9;
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --pry-blue: #4fb3e8; --pry-pink: #ef6bb0; --pry-yellow: #ffd34f; --pry-ink: #151515;
+  --pry-line: #e4ecf6;
+  --pry-shadow: 0 12px 28px -16px rgba(50, 100, 170, 0.42);
+  color-scheme: light;
+  color: var(--color-paper);
+}
+.pry-ui ::selection { background: rgba(79, 179, 232, 0.35); color: #111; }
+.pry-ui ::-webkit-scrollbar-thumb { background: rgba(20, 22, 29, 0.14); }
+
+/* ---------- background (PryBg) ---------- */
+.pry-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: linear-gradient(#fff, #f6f8fb); }
+.pry-grid { position: absolute; inset: 0; opacity: 0.55;
+  background-image: linear-gradient(#e9eef5 1px, transparent 1px), linear-gradient(90deg, #e9eef5 1px, transparent 1px);
+  background-size: 26px 26px; -webkit-mask-image: radial-gradient(85% 60% at 50% 30%, #000, transparent); mask-image: radial-gradient(85% 60% at 50% 30%, #000, transparent); }
+.pry-sky { position: absolute; left: 0; right: 0; top: 0; height: 46%; animation: pry-fade 1.1s ease-out both;
+  background: radial-gradient(75% 90% at 50% 0%, #a9d5f5 0%, #d3eafb 42%, rgba(255, 255, 255, 0) 78%); }
+.pry-rays { position: absolute; left: -25%; right: -25%; top: -8%; height: 100%; transform-origin: 50% 0;
+  background: repeating-conic-gradient(from 90deg at 50% 0%, rgba(255, 255, 255, 0.42) 0 5deg, rgba(255, 255, 255, 0) 5deg 12deg);
+  -webkit-mask-image: linear-gradient(#000 0%, transparent 80%); mask-image: linear-gradient(#000 0%, transparent 80%);
+  animation: pry-sway 10s ease-in-out infinite; }
+@keyframes pry-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes pry-fade { from { opacity: 0; } to { opacity: 1; } }
+.pry-orb { position: absolute; border-radius: 50%; will-change: transform; }
+.pry-orb.o1 { width: 78vmin; height: 78vmin; top: -26vmin; left: -30vmin;
+  background: radial-gradient(circle, rgba(79, 179, 232, 0.4), rgba(79, 179, 232, 0) 66%); animation: pry-drift-a 15s ease-in-out infinite alternate; }
+.pry-orb.o2 { width: 70vmin; height: 70vmin; top: 34%; right: -34vmin;
+  background: radial-gradient(circle, rgba(239, 107, 176, 0.34), rgba(239, 107, 176, 0) 66%); animation: pry-drift-b 18s ease-in-out infinite alternate; }
+.pry-orb.o3 { width: 74vmin; height: 74vmin; bottom: -34vmin; left: -8vmin;
+  background: radial-gradient(circle, rgba(255, 211, 79, 0.42), rgba(255, 211, 79, 0) 66%); animation: pry-drift-c 20s ease-in-out infinite alternate; }
+@keyframes pry-drift-a { to { transform: translate3d(14vmin, 12vmin, 0) scale(1.12); } }
+@keyframes pry-drift-b { to { transform: translate3d(-14vmin, -10vmin, 0) scale(1.18); } }
+@keyframes pry-drift-c { to { transform: translate3d(12vmin, -12vmin, 0) scale(0.9); } }
+.pry-spark { position: absolute; width: 14px; height: 14px; opacity: 0; animation: pry-twinkle 3.2s ease-in-out infinite; }
+.pry-spark.s0 { top: 9%; left: 12%; color: #4fb3e8; animation-delay: 0.2s; }
+.pry-spark.s1 { top: 15%; right: 14%; color: #ef6bb0; width: 10px; height: 10px; animation-delay: 1.1s; }
+.pry-spark.s2 { top: 31%; left: 6%; color: #ffd34f; width: 11px; height: 11px; animation-delay: 2s; }
+.pry-spark.s3 { top: 52%; right: 7%; color: #4fb3e8; width: 12px; height: 12px; animation-delay: 0.7s; }
+.pry-spark.s4 { top: 70%; left: 10%; color: #ef6bb0; animation-delay: 1.6s; }
+.pry-spark.s5 { top: 84%; right: 22%; color: #ffd34f; width: 10px; height: 10px; animation-delay: 2.5s; }
+@keyframes pry-twinkle { 0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 50% { opacity: 0.95; transform: scale(1.15) rotate(45deg); } }
+
+/* ---------- cute blobs (loading screen ke gole) ---------- */
+.pry-blob { position: relative; display: inline-block; width: var(--bs, 84px); height: var(--bs, 84px); flex: none; }
+.pry-blob.abs { position: absolute; }
+.pry-blob .body, .pry-blob .face { position: absolute; inset: 0; animation: pry-bob var(--bt, 5s) ease-in-out var(--bd, 0s) infinite; }
+.pry-blob .body { border-radius: 50%; }
+.pry-blob .face { width: 100%; height: 100%; overflow: visible; }
+.pry-blob.blue .body { background: radial-gradient(circle at 60% 55%, #4fb3e8 0%, #6cc2ee 45%, #b9e1f7 68%, rgba(255, 255, 255, 0) 76%); }
+.pry-blob.pink .body { background: radial-gradient(circle at 45% 52%, #e8479b 0%, #ef6bb0 45%, #f7b4d4 68%, rgba(255, 255, 255, 0) 76%); }
+.pry-blob.yellow .body { background: radial-gradient(circle at 50% 40%, #ffd34f 0%, #ffdc72 48%, #fff0b8 68%, rgba(255, 255, 255, 0) 76%); }
+@keyframes pry-bob { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(4px, -9px) scale(1.04); } 66% { transform: translate(-4px, -4px) scale(0.98); } }
+.pry-eye { transform-box: fill-box; transform-origin: center; animation: pry-blink 4.8s ease-in-out infinite; }
+.pry-eye.b { animation-delay: 0.06s; }
+@keyframes pry-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+.pry-twinkle { transform-box: fill-box; transform-origin: center; animation: pry-star 2.2s ease-in-out infinite; }
+@keyframes pry-star { 0%, 100% { transform: scale(0.5) rotate(0); opacity: 0.6; } 50% { transform: scale(1.25) rotate(45deg); opacity: 1; } }
+.pry-ui .pry-empty { display: grid; place-items: center; text-align: center; }
+.pry-ui .pry-empty .pry-blob { --bs: 120px; margin-bottom: 0.25rem; }
+
+/* ---------- base component overrides (sirf light theme me) ---------- */
+.pry-ui .glass { background: rgba(255, 255, 255, 0.82); border: 1px solid var(--pry-line); box-shadow: var(--pry-shadow);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.pry-ui .card { background: #fff; border: 1px solid var(--pry-line); border-radius: 1.5rem; box-shadow: 0 10px 26px -18px rgba(50, 100, 170, 0.5); }
+.pry-ui .btn-hot { background: var(--pry-ink); color: #fff; border-radius: 999px; box-shadow: 0 14px 26px -12px rgba(0, 0, 0, 0.5); }
+.pry-ui .btn-hot::after { background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.3) 50%, transparent 65%); }
+.pry-ui .btn-hot:disabled { opacity: 0.4; }
+.pry-ui .shimmer { background: linear-gradient(100deg, #eef2f8 30%, #fafcff 50%, #eef2f8 70%); background-size: 200% 100%; }
+.pry-ui .bubble-me { background: var(--cm-me, linear-gradient(135deg, #3aa8ec 0%, #6f86f2 60%, #8f7cf2 100%)); color: #fff; box-shadow: 0 10px 20px -12px rgba(60, 120, 240, 0.8); }
+.pry-ui .bubble-them { background: #fff; border: 1px solid var(--pry-line); box-shadow: 0 6px 16px -12px rgba(50, 100, 170, 0.55); }
+.pry-ui .toast-in { box-shadow: 0 20px 44px -14px rgba(50, 110, 190, 0.55) !important; }
+.pry-ui input:focus, .pry-ui textarea:focus { box-shadow: 0 0 0 4px rgba(79, 179, 232, 0.2); border-color: rgba(79, 179, 232, 0.8); }
+.pry-ui .ring-live::after { border-color: var(--pry-blue); }
+.pry-ui .live-dot, .pry-ui .live-dot::after { background: var(--pry-blue); }
+.pry-ui .rise { animation: pry-pop 760ms var(--spring) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+@keyframes pry-pop { from { opacity: 0; transform: translate3d(0, 38px, 0) scale(0.9) rotate(-1.2deg); } to { opacity: 1; transform: none; } }
+.pry-ui .pop-in { animation-name: pry-pop-in; }
+@keyframes pry-pop-in { from { opacity: 0; transform: scale(0.6) translate3d(0, 20px, 0); } to { opacity: 1; transform: none; } }
+
+/* ---------- header (logo + glass buttons) ---------- */
+.pry-brand { display: flex; align-items: center; gap: 0.6rem; }
+.pry-logo { width: 40px; height: 40px; border-radius: 13px; object-fit: cover; box-shadow: 0 8px 18px rgba(40, 120, 200, 0.35), 0 0 0 2px #fff;
+  animation: pry-logo-in 900ms cubic-bezier(0.34, 1.7, 0.64, 1) both, pry-logo-float 4s ease-in-out 1s infinite; }
+@keyframes pry-logo-in { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pry-logo-float { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-3deg); } }
+.pry-word { font-weight: 700; letter-spacing: -0.03em; font-size: 1.32rem; line-height: 1; animation: pry-rise-x 700ms var(--spring-soft) 150ms both; }
+@keyframes pry-rise-x { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+.pry-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 16px; margin-left: 0.4rem;
+  background: rgba(255, 255, 255, 0.55); border: 1px solid #fff; box-shadow: 0 6px 16px -8px rgba(60, 120, 190, 0.5);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: pry-pop-in 640ms var(--spring) 250ms both; }
+.pry-ic:nth-child(2) { animation-delay: 360ms; }
+.pry-ic:active svg { animation: pry-wiggle 420ms ease; }
+@keyframes pry-wiggle { 30% { transform: rotate(-16deg) scale(1.12); } 60% { transform: rotate(12deg) scale(0.95); } }
+.pry-headbar { animation: pry-down 700ms var(--spring-soft) both; }
+@keyframes pry-down { from { transform: translateY(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ---------- floating dock ---------- */
+.pry-ui .ir-glass { background: rgba(255, 255, 255, 0.86); border: 1px solid #fff;
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow: 0 20px 40px -16px rgba(40, 90, 160, 0.5), 0 0 0 1px rgba(228, 236, 246, 0.9); }
+.pry-ui .ir-pill button { color: #8b95a8; }
+.pry-ui .ir-pill button.on { color: #fff; }
+.pry-ui .ir-pill button.on > svg { filter: none; animation: pry-icon-pop 560ms var(--spring) both; }
+@keyframes pry-icon-pop { from { transform: scale(0.6) translateY(6px) rotate(-12deg); } to { transform: none; } }
+.pry-ui .ir-ind { background: var(--pry-ink); border: 0; box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.55); }
+.pry-ui .ir-me.on { box-shadow: 0 0 0 2.5px var(--pry-ink), 0 12px 26px -10px rgba(0, 0, 0, 0.5); }
+.pry-ui .ir-me { overflow: visible; }
+.pry-ui .ir-me.on::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--pry-blue); animation: pry-ping 2.4s ease-out infinite; }
+@keyframes pry-ping { from { transform: scale(0.92); opacity: 0.9; } to { transform: scale(1.35); opacity: 0; } }
+.pry-ui .badge-pop { box-shadow: 0 0 0 2px #fff; }
+
+/* ---------- chats ---------- */
+.pry-ctitle { font-weight: 700; letter-spacing: -0.03em; }
+.pry-search { display: flex; height: 3rem; align-items: center; gap: 0.75rem; border-radius: 999px; padding: 0 1rem; background: #fff; border: 1px solid var(--pry-line);
+  box-shadow: var(--pry-shadow); transition: box-shadow 300ms, transform 300ms var(--spring); }
+.pry-search:focus-within { transform: scale(1.015); box-shadow: 0 0 0 4px rgba(79, 179, 232, 0.2), var(--pry-shadow); }
+.pry-ui .pry-row { padding: 0 0.75rem 0.55rem; }
+.pry-ui .pry-row > button { background: #fff; border: 1px solid var(--pry-line); border-radius: 1.5rem; box-shadow: 0 8px 20px -16px rgba(50, 100, 170, 0.6); }
+.pry-ui .pry-row > button:active { background: #f3f8fe; }
+.pry-ui .pry-row .pry-unread { background: var(--pry-blue); box-shadow: 0 0 0 3px rgba(79, 179, 232, 0.25); animation: pry-throb 1.8s ease-in-out infinite; }
+@keyframes pry-throb { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+.pry-ui .pry-row.fade-up { animation-name: pry-row-in; animation-duration: 640ms; animation-timing-function: var(--spring); animation-fill-mode: backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+@keyframes pry-row-in { from { opacity: 0; transform: translate3d(-34px, 0, 0) scale(0.94); } to { opacity: 1; transform: none; } }
+
+/* ---------- home ---------- */
+.pry-hero { position: relative; overflow: hidden; border-radius: 2rem; padding: 1.2rem 1.2rem 1.3rem; min-height: 9.6rem;
+  background: linear-gradient(165deg, #b9def7 0%, #d9eefc 52%, #f4faff 100%); border: 1px solid #fff;
+  box-shadow: 0 26px 44px -24px rgba(50, 130, 205, 0.65); }
+.pry-hero-rays { position: absolute; left: -30%; right: -30%; top: -30%; height: 150%; transform-origin: 50% 0; pointer-events: none;
+  background: repeating-conic-gradient(from 90deg at 50% 0%, rgba(255, 255, 255, 0.5) 0 5deg, rgba(255, 255, 255, 0) 5deg 12deg);
+  -webkit-mask-image: linear-gradient(#000, transparent 85%); mask-image: linear-gradient(#000, transparent 85%); animation: pry-sway 9s ease-in-out infinite; }
+.pry-hero-top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.pry-hello { margin: 0; font-size: 0.92rem; font-weight: 600; color: rgba(20, 22, 29, 0.6); animation: pry-rise-x 700ms var(--spring-soft) 200ms both; }
+.pry-wave { display: inline-block; transform-origin: 70% 70%; animation: pry-wave 2.6s ease-in-out 1s infinite; }
+@keyframes pry-wave { 0%, 60%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(16deg); } 20%, 40% { transform: rotate(-10deg); } 50% { transform: rotate(8deg); } }
+.pry-name { margin: 0.1rem 0 0; font-size: 2.15rem; line-height: 1.08; font-weight: 700; letter-spacing: -0.04em; color: #14161d; animation: pry-rise-x 760ms var(--spring-soft) 280ms both; }
+.pry-chip { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.6rem 0 0; height: 1.9rem; padding: 0 0.8rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600;
+  background: rgba(255, 255, 255, 0.75); border: 1px solid #fff; box-shadow: 0 6px 14px -8px rgba(50, 110, 190, 0.5); animation: pry-pop-in 640ms var(--spring) 480ms both; }
+.pry-chip i { width: 8px; height: 8px; border-radius: 50%; }
+.pry-avatar { position: relative; flex: none; display: grid; place-items: center; padding: 6px; border-radius: 50%; background: #fff; box-shadow: 0 14px 26px -10px rgba(40, 110, 190, 0.6);
+  animation: pry-logo-in 900ms cubic-bezier(0.34, 1.7, 0.64, 1) 350ms both, pry-logo-float 5s ease-in-out 1.4s infinite; }
+.pry-avatar::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 2px dashed rgba(79, 179, 232, 0.8); animation: pry-spin 16s linear infinite; }
+.pry-avatar::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 2px solid rgba(239, 107, 176, 0.6); animation: pry-ping 2.6s ease-out infinite; }
+@keyframes pry-spin { to { transform: rotate(360deg); } }
+.pry-hero .pry-blob { z-index: 1; opacity: 0.95; }
+.pry-hero .hb1 { --bs: 78px; --bt: 5s; --bd: -1s; right: 22%; bottom: -26px; }
+.pry-hero .hb2 { --bs: 64px; --bt: 5.6s; --bd: -2.4s; right: -14px; bottom: 6px; }
+.pry-hero .hb3 { --bs: 70px; --bt: 4.4s; --bd: -0.5s; left: -18px; bottom: -22px; }
+
+.pry-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
+.pry-stat { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.95rem 0.9rem 0.85rem; text-align: left; border-radius: 1.5rem; border: 1px solid #fff;
+  box-shadow: 0 14px 26px -18px rgba(50, 100, 170, 0.7); }
+.pry-stat.b { background: linear-gradient(160deg, #dff1fd, #fff 120%); }
+.pry-stat.p { background: linear-gradient(160deg, #fde4f1, #fff 120%); }
+.pry-stat.y { background: linear-gradient(160deg, #fff2c6, #fff 120%); }
+.pry-stat::after { content: ""; position: absolute; right: -16px; top: -16px; width: 62px; height: 62px; border-radius: 50%; opacity: 0.85; animation: pry-bob 5s ease-in-out infinite; }
+.pry-stat.b::after { background: radial-gradient(circle, rgba(79, 179, 232, 0.55), rgba(79, 179, 232, 0) 70%); }
+.pry-stat.p::after { background: radial-gradient(circle, rgba(239, 107, 176, 0.5), rgba(239, 107, 176, 0) 70%); animation-delay: -1.6s; }
+.pry-stat.y::after { background: radial-gradient(circle, rgba(255, 211, 79, 0.65), rgba(255, 211, 79, 0) 70%); animation-delay: -3s; }
+.pry-stat b { position: relative; z-index: 1; font-size: 1.9rem; line-height: 1; font-weight: 700; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.pry-stat span { position: relative; z-index: 1; }
+
+.pry-acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
+.pry-act { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.95rem 0.5rem; border-radius: 1.5rem; font-size: 0.78rem; font-weight: 600;
+  background: #fff; border: 1px solid var(--pry-line); box-shadow: 0 10px 22px -16px rgba(50, 100, 170, 0.65); }
+.pry-act.primary { background: var(--pry-ink); color: #fff; border-color: var(--pry-ink); box-shadow: 0 16px 28px -12px rgba(0, 0, 0, 0.5); }
+.pry-act.primary::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: skewX(-18deg); animation: pry-shine 3.4s ease-in-out 1.6s infinite; }
+@keyframes pry-shine { 0% { left: -40%; } 45%, 100% { left: 130%; } }
+.pry-act svg { transition: transform 400ms var(--spring); }
+.pry-act:active svg { transform: scale(1.3) rotate(-10deg); }
+
+.pry-banner { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.9rem; border-radius: 1.4rem; background: linear-gradient(135deg, #fff6d3, #fff 130%); border: 1px solid #ffe69a; box-shadow: 0 12px 24px -18px rgba(220, 160, 20, 0.8); }
+.pry-banner svg { color: #e0a400; animation: pry-wiggle 2.8s ease-in-out infinite; }
+
+.pry-ui .seg { background: #fff; border: 1px solid var(--pry-line); border-radius: 999px; box-shadow: var(--pry-shadow); }
+.pry-ui .seg-thumb { border-radius: 999px; background: linear-gradient(135deg, #cfe9fb, #fbdcec); border: 1px solid #fff; box-shadow: 0 8px 16px -8px rgba(70, 130, 200, 0.7); }
+.pry-ic-b { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.9rem; flex: none; transition: transform 400ms var(--spring); }
+.pry-ic-b.blue { background: #dff1fd; color: #1b8fd6; }
+.pry-ic-b.pink { background: #fde4f1; color: #dc3d8f; }
+.pry-ic-b.yellow { background: #fff2c6; color: #c98c00; }
+.pry-ic-b.lav { background: #e9e6ff; color: #6a5ae0; }
+.pry-ui button:active > .pry-ic-b { transform: scale(1.18) rotate(-8deg); }
+.pry-sec { margin: 0 0 0.5rem 0.25rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(20, 22, 29, 0.42); }
+
+/* ---------- chat screen (Thread) ---------- */
+.pry-ui .pry-thread { background-color: #fff;
+  background-image: radial-gradient(75% 38% at 50% 0%, #cfe6f9 0%, rgba(255, 255, 255, 0) 100%), linear-gradient(#edf1f7 1px, transparent 1px), linear-gradient(90deg, #edf1f7 1px, transparent 1px);
+  background-size: auto, 26px 26px, 26px 26px; }
+.pry-ui .pry-thread > header { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); background: rgba(255, 255, 255, 0.78); border-bottom-color: var(--pry-line); box-shadow: 0 10px 24px -20px rgba(50, 100, 170, 0.8); }
+.pry-ui .pry-thread form.dock, .pry-ui .pry-thread .dock { background: rgba(255, 255, 255, 0.9); border-top-color: var(--pry-line); }
+.pry-ui .pry-thread textarea { background: #fff; border-color: var(--pry-line); box-shadow: 0 6px 16px -12px rgba(50, 100, 170, 0.6); }
+
+/* ---------- performance / accessibility ---------- */
+:root[data-perf="low"] .pry-ui .pry-bg *, :root[data-perf="low"] .pry-ui .pry-hero-rays, :root[data-perf="low"] .pry-ui .pry-avatar::before, :root[data-perf="low"] .pry-ui .pry-avatar::after,
+:root[data-perf="low"] .pry-ui .pry-stat::after, :root[data-perf="low"] .pry-ui .pry-blob .body, :root[data-perf="low"] .pry-ui .pry-blob .face, :root[data-perf="low"] .pry-ui .pry-spark,
+:root[data-perf="low"] .pry-ui .pry-act.primary::after, :root[data-perf="low"] .pry-ui .pry-logo, :root[data-perf="low"] .pry-ui .pry-avatar { animation: none !important; }
+:root[data-perf="low"] .pry-ui .pry-spark { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) {
+  .pry-bg *, .pry-hero-rays, .pry-avatar, .pry-avatar::before, .pry-avatar::after, .pry-stat::after, .pry-blob .body, .pry-blob .face, .pry-eye, .pry-twinkle, .pry-logo, .pry-wave,
+  .pry-act.primary::after, .pry-banner svg, .pry-ui .rise, .pry-ui .pry-row .pry-unread, .pry-ui .ir-me.on::after { animation: none !important; }
+  .pry-spark { opacity: 0.6; }
+}
+
+/* home sections ki spring entrance */
+.pry-ui .pry-hero { animation: pry-pop 820ms var(--spring) backwards; }
+.pry-ui .pry-stats { animation: pry-pop 760ms var(--spring) 90ms backwards; }
+.pry-ui .pry-stat:nth-child(2) { animation: pry-pop 760ms var(--spring) 170ms backwards; }
+.pry-ui .pry-stat:nth-child(3) { animation: pry-pop 760ms var(--spring) 250ms backwards; }
+.pry-ui .pry-acts .pry-act { animation: pry-pop 700ms var(--spring) backwards; }
+.pry-ui .pry-acts .pry-act:nth-child(2) { animation-delay: 90ms; }
+.pry-ui .pry-acts .pry-act:nth-child(3) { animation-delay: 180ms; }
+
+/* =====================================================================
+   BATCH 2 — chat screen polish (Thread)
+   ===================================================================== */
+.pry-ui .pry-thread .bubble-me, .pry-ui .pry-thread .bubble-them { border-radius: 1.4rem; padding: 0.55rem 0.85rem; }
+.pry-ui .pry-thread .bubble-me.rounded-br-md { border-bottom-right-radius: 0.45rem; }
+.pry-ui .pry-thread .bubble-them.rounded-bl-md { border-bottom-left-radius: 0.45rem; }
+.pry-ui .pry-thread .msg-row { animation: pry-msg 520ms var(--spring) backwards; }
+@keyframes pry-msg { from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.94); } to { opacity: 1; transform: none; } }
+.pry-ui .pry-thread .bubble-them [class*="border-white/60"] { border-color: var(--pry-blue); background: #eef6fd; color: #14161d; }
+.pry-day { background: #fff !important; border: 1px solid var(--pry-line); color: rgba(20, 22, 29, 0.55) !important; box-shadow: 0 6px 14px -10px rgba(50, 100, 170, 0.7); animation: pry-pop-in 560ms var(--spring) both; }
+.pry-ui .pry-thread .msg-row > div > button.tap, .pry-ui .pry-thread .pop-in .tap.rounded-full.border { background: #fff; box-shadow: 0 6px 14px -10px rgba(50, 100, 170, 0.7); }
+.pry-ui .pry-thread .pop-in > button.rounded-full { animation: pry-pop-in 520ms var(--spring) both; }
+.pry-ui .pry-thread .seen-pop { color: var(--pry-blue); }
+.pry-ui .pry-thread .typing-dot:nth-child(1) { background: var(--pry-blue); }
+.pry-ui .pry-thread .typing-dot:nth-child(2) { background: var(--pry-pink); }
+.pry-ui .pry-thread .typing-dot:nth-child(3) { background: var(--pry-yellow); }
+.pry-ui .pry-thread .sticker-img { filter: drop-shadow(0 6px 8px rgba(50, 100, 170, 0.25)); }
+.pry-ui .pry-thread .sheet-up.bg-deep, .pry-ui .pry-thread .sheet-up.border-t { box-shadow: 0 -16px 32px -22px rgba(50, 100, 170, 0.55); }
+.pry-ui .pry-thread .rounded-t-3xl { border-top-left-radius: 2rem; border-top-right-radius: 2rem; border: 1px solid var(--pry-line); }
+.pry-ui .pry-thread form.dock button.tap.rounded-full:not(.btn-hot) { transition: transform 360ms var(--spring), background-color 160ms; }
+.pry-ui .pry-thread form.dock button.tap.rounded-full:not(.btn-hot):active { background: #eaf4fd; transform: scale(0.85) rotate(-8deg); }
+.pry-ui .pry-thread form.dock .btn-hot { animation: pry-pop-in 420ms var(--spring) both; }
+.pry-ui .pry-thread textarea { border-radius: 1.6rem; }
+.pry-ui .pry-thread header .tap.rounded-full:active { background: #eaf4fd; }
+.pry-ui .pry-thread header p.font-display { letter-spacing: -0.02em; }
+:root[data-perf="low"] .pry-ui .pry-thread .msg-row, :root[data-perf="low"] .pry-day { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .pry-ui .pry-thread .msg-row, .pry-day, .pry-ui .pry-thread form.dock .btn-hot { animation: none !important; } }

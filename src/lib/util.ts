@@ -126,6 +126,7 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 
 /* ---------- theme ---------- */
 export const THEMES = [
+  { id: "pryielle", label: "Pryielle (Light)", colors: ["#3aa8ec", "#6f86f2", "#e95fae"] },
   { id: "haunted", label: "Haunted", colors: ["#ff5a1f", "#e11d48", "#7c3aed"] },
   { id: "bloodmoon", label: "Blood Moon", colors: ["#ff3b30", "#c1121f", "#6d0b2c"] },
   { id: "phantom", label: "Phantom", colors: ["#67e8f9", "#a855f7", "#ec4899"] },
@@ -159,7 +160,10 @@ export const THEMES = [
 ] as { id: string; label: string; colors: readonly [string, string, string]; art?: boolean }[];
 
 export function loadTheme() {
-  const theme = localStorage.getItem("pry-theme") ?? "haunted";
+  // naya Pryielle light look default hai; purana default "haunted" ek baar is par shift hota hai
+  let theme = localStorage.getItem("pry-theme") ?? "pryielle";
+  if (theme === "haunted" && !localStorage.getItem("pry-ui2")) theme = "pryielle";
+  localStorage.setItem("pry-ui2", "1");
   const amoled = localStorage.getItem("pry-amoled") === "1";
   applyTheme(theme, amoled);
   document.documentElement.dataset.motion = localStorage.getItem("iron-motion") === "reduced" ? "reduced" : "full";

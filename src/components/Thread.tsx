@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PryBlob, usePryTheme } from "./PryArt";
 import {
   ArrowDown, Ban, BellOff, Check, CheckCheck, ChevronLeft, Clapperboard, Clock, Copy, Flag, ImagePlus, Mic, MoreVertical,
   Pause, Palette, Pencil, Pin, Play, Plus, Reply, RotateCw, Search, Send, Shield, Smile, Trash2, X, Zap,
@@ -182,6 +183,7 @@ export function Thread({ chatId, me, onBack, onGroup, onProfile }: { chatId: str
   const isGroup = chat?.kind === "group";
   const iAmAdmin = Boolean(chat?.admins.includes(me.uid));
   const title = isGroup ? chat?.title ?? "" : peer?.displayName ?? "";
+  const pry = usePryTheme();
   const theme = CHAT_THEMES.find((t) => t.id === themeId) ?? CHAT_THEMES[0];
   const maxVideo = 8_000_000;
   const maxVoice = me.pro ? 120 : 30;
@@ -446,7 +448,7 @@ export function Thread({ chatId, me, onBack, onGroup, onProfile }: { chatId: str
 
   return (
     <section
-      className="slide-in safe-top fixed inset-0 z-40 flex flex-col bg-ink lg:static lg:z-auto lg:h-full lg:flex-1 lg:animate-none"
+      className="slide-in pry-thread safe-top fixed inset-0 z-40 flex flex-col bg-ink lg:static lg:z-auto lg:h-full lg:flex-1 lg:animate-none"
       style={{ background: theme.wall || undefined, ["--cm-me" as string]: theme.me || undefined }}
     >
       <header className="flex h-16 shrink-0 items-center gap-1 border-b border-paper/8 bg-deep/85 px-2">
@@ -497,7 +499,7 @@ export function Thread({ chatId, me, onBack, onGroup, onProfile }: { chatId: str
           <p className="mb-3 text-center"><button type="button" className="tap rounded-full bg-paper/8 px-4 py-2 text-xs font-semibold text-paper/70" onClick={() => setMax((v) => v + 40)}>↑ Purane messages dikhao</button></p>
         ) : null}
         {ready && visible.length === 0 && outbox.length === 0 ? (
-          <div className="grid h-full place-items-center px-6 text-center"><div className="pop-in"><p className="float text-5xl">{searching ? "🔎" : "👋"}</p><p className="mt-3 font-display text-2xl font-bold">{searching ? "Kuch nahi mila" : "Say hi!"}</p></div></div>
+          <div className="grid h-full place-items-center px-6 text-center"><div className="pop-in">{pry ? <PryBlob kind={searching ? "pink" : "yellow"} style={{ "--bs": "120px" } as React.CSSProperties} /> : <p className="float text-5xl">{searching ? "🔎" : "👋"}</p>}<p className="mt-3 font-display text-2xl font-bold">{searching ? "Kuch nahi mila" : "Say hi!"}</p></div></div>
         ) : null}
 
         <div className="flex flex-col">
@@ -512,7 +514,7 @@ export function Thread({ chatId, me, onBack, onGroup, onProfile }: { chatId: str
             const lastOfRun = !next || next.system || next.senderId !== m.senderId || new Date(next.createdAt).toDateString() !== new Date(m.createdAt).toDateString();
             return (
               <div key={m.id} className={clsx(same ? "mt-1" : "mt-3", "msg-row")}>
-                {showDay ? <p className="mb-3 text-center"><span className="rounded-full bg-paper/8 px-3 py-1 text-xs font-semibold text-paper/55">{dayLabel(m.createdAt)}</span></p> : null}
+                {showDay ? <p className="mb-3 text-center"><span className="pry-day rounded-full bg-paper/8 px-3 py-1 text-xs font-semibold text-paper/55">{dayLabel(m.createdAt)}</span></p> : null}
                 {m.system ? (
                   <p className="text-center text-xs text-paper/45">{m.text}</p>
                 ) : m.deleted ? (

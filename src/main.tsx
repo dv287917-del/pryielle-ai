@@ -7,6 +7,7 @@ import "@fontsource/sora/600.css";
 import "./styles.css";
 import "./fluid.css";
 import "./premium.css";
+import "./pryielle-ui.css";
 import { initPerf } from "./lib/perf";
 import { loadTheme } from "./lib/util";
 import { App } from "./App";

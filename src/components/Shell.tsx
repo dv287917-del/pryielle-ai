@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { AlarmHost } from "./Emergency";
@@ -25,6 +25,7 @@ import { HomeView } from "./HomeView";
 import { YoutubeView } from "./YoutubeView";
 import { CloseFriendsSheet, NewsSheet, ProSheet } from "./Panels";
 import { SpamGuard } from "./SpamGuard";
+import { PryBg, PryBlob, usePryStatusBar, usePryTheme } from "./PryArt";
 import { StoriesStrip, StoryCreator, StoryViewer, visibleItems, type StoryOwner } from "./Stories";
 
 /** Reels ki jagah: YouTube ka apna play-icon (outline), dock me */
@@ -35,6 +36,11 @@ function YtIcon({ className }: { className?: string }) {
       <path d="M10 9.2v5.6l4.8-2.8L10 9.2Z" fill="currentColor" stroke="none" />
     </svg>
   );
+}
+
+/** Light (Pryielle) theme ke andar wale overlays ko `.pry-ui` scope deta hai (layout par koi asar nahi). */
+function Pry({ on, children }: { on: boolean; children: ReactNode }) {
+  return <div className={clsx("contents", on && "pry-ui")}>{children}</div>;
 }
 
 type Tab = "home" | "chats" | "find" | "squads" | "me";
@@ -74,7 +80,7 @@ function ChatRow({ chat, me, index, filter, onOpen }: { chat: ChatDoc; me: UserD
   const q = (filter ?? "").trim().toLowerCase();
   if (q && !title.toLowerCase().includes(q) && !(peer?.username ?? "").includes(q)) return null;
   return (
-    <li className="fade-up" style={{ "--d": Math.min(index, 8) * 40 } as CSSProperties}>
+    <li className="fade-up pry-row" style={{ "--d": Math.min(index, 8) * 60 } as CSSProperties}>
       <button type="button" onClick={() => onOpen(chat.id)} className="tap flex w-full items-center gap-3.5 px-4 py-3 text-left active:bg-paper/5">
         {chat.kind === "group" ? (
           <span className="grad grid size-14 shrink-0 place-items-center rounded-full text-white"><Users className="size-6" /></span>
@@ -94,7 +100,7 @@ function ChatRow({ chat, me, index, filter, onOpen }: { chat: ChatDoc; me: UserD
             {previewText(chat, me.uid)}{last ? ` · ${relTime(last.at)}` : ""}
           </span>
         </span>
-        {unread > 0 ? <span key={unread} className="badge-pop size-3 shrink-0 rounded-full bg-[#2b8cff]" aria-label={`${unread} unread`} /> : null}
+        {unread > 0 ? <span key={unread} className="badge-pop pry-unread size-3 shrink-0 rounded-full bg-[#2b8cff]" aria-label={`${unread} unread`} /> : null}
         <Camera className="size-7 shrink-0 text-paper/70" strokeWidth={1.6} />
       </button>
     </li>
@@ -117,6 +123,7 @@ function RequestRow({ chat, me, onOpen }: { chat: ChatDoc; me: UserDoc; onOpen: 
 }
 
 function FindTab({ me, onOpen, onProfile }: { me: UserDoc; onOpen: (id: string) => void; onProfile: (uid: string) => void }) {
+  const pry = usePryTheme();
   const [term, setTerm] = useState("");
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
@@ -140,7 +147,7 @@ function FindTab({ me, onOpen, onProfile }: { me: UserDoc; onOpen: (id: string) 
       {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
       {term.trim().length < 2 ? (
         <div className="pop-in mt-10 text-center">
-          <p className="float text-5xl">🔎</p>
+          {pry ? <PryBlob kind="pink" style={{ "--bs": "120px" } as CSSProperties} /> : <p className="float text-5xl">🔎</p>}
           <p className="mt-3 text-sm text-pretty text-paper/55">Jo bhi sign up karta hai uski ID yahan mil jati hai.</p>
         </div>
       ) : null}
@@ -163,6 +170,8 @@ function FindTab({ me, onOpen, onProfile }: { me: UserDoc; onOpen: (id: string) 
 }
 
 export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isAdmin: boolean; config: AppConfig; float?: boolean }) {
+  const pry = usePryTheme();
+  usePryStatusBar(pry);
   const [tab, setTab] = useState<Tab>(float ? "chats" : "home");
   const [secretOpen, setSecretOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -383,28 +392,35 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
 
   return (
     <div className="safe-top relative flex h-dvh overflow-hidden bg-ink text-paper">
-      <div className="relative flex min-h-0 w-full flex-col lg:w-[400px] lg:shrink-0 lg:border-r lg:border-paper/10">
-      <Aurora />
+      <div className={clsx("relative flex min-h-0 w-full flex-col lg:w-[400px] lg:shrink-0 lg:border-r lg:border-paper/10", pry && "pry-ui")}>
+      {pry ? <PryBg /> : <Aurora />}
       <AlarmHost uid={me.uid} />
       {tab === "chats" ? (
         <header className="relative flex h-14 shrink-0 items-center justify-center px-4">
-          <button type="button" className="tap flex items-center gap-1.5 text-[1.5rem] font-bold" onClick={() => setTab("me")}>
+          <button type="button" className="tap pry-ctitle flex items-center gap-1.5 text-[1.5rem] font-bold" onClick={() => setTab("me")}>
             <span className="max-w-[14rem] truncate">{me.username}</span><ChevronDown className="size-6" />{unread > 0 ? <span className="size-2.5 rounded-full bg-red-500" /> : null}
           </button>
-          <button type="button" className="tap absolute right-3 grid size-11 place-items-center" aria-label="New chat" onClick={() => setTab("find")}><SquarePen className="size-7" strokeWidth={1.6} /></button>
+          <button type="button" className={clsx("tap absolute right-3 grid size-11 place-items-center", pry && "pry-ic")} aria-label="New chat" onClick={() => setTab("find")}><SquarePen className="size-7" strokeWidth={1.6} /></button>
         </header>
       ) : tab !== "me" ? (
-      <header className="relative flex h-16 shrink-0 items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <Mark className="size-8" />
-          <p className="font-display text-2xl leading-none font-bold">IronRoses <span className="grad-text">MSG</span></p>
-        </div>
+      <header className={clsx("relative flex h-16 shrink-0 items-center justify-between px-4", pry && "pry-headbar")}>
+        {pry ? (
+          <div className="pry-brand">
+            <img className="pry-logo" src={appLogo} alt="" draggable={false} />
+            <p className="pry-word font-display">IronRoses <span className="grad-text">MSG</span></p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Mark className="size-8" />
+            <p className="font-display text-2xl leading-none font-bold">IronRoses <span className="grad-text">MSG</span></p>
+          </div>
+        )}
         <div className="flex items-center">
-          <button type="button" className="tap relative grid size-11 place-items-center rounded-full" aria-label="News" onClick={() => { setNewsOpen(true); const t = news[0]?.at ?? Date.now(); setNewsSeen(t); localStorage.setItem("pry-news-seen", String(t)); }}>
+          <button type="button" className={clsx("tap relative grid size-11 place-items-center rounded-full", pry && "pry-ic")} aria-label="News" onClick={() => { setNewsOpen(true); const t = news[0]?.at ?? Date.now(); setNewsSeen(t); localStorage.setItem("pry-news-seen", String(t)); }}>
             <Newspaper className="size-5" />
             {newsUnread ? <span className="badge-pop absolute top-2.5 right-2.5 size-2.5 rounded-full bg-hot ring-2 ring-ink" /> : null}
           </button>
-          <button type="button" className="tap relative grid size-11 place-items-center rounded-full" aria-label="Notifications" onClick={() => setPingOpen(true)}>
+          <button type="button" className={clsx("tap relative grid size-11 place-items-center rounded-full", pry && "pry-ic")} aria-label="Notifications" onClick={() => setPingOpen(true)}>
             <Bell className="size-5" />
             {unread > 0 ? <span className="badge-pop absolute top-2.5 right-2.5 size-2.5 rounded-full bg-rose ring-2 ring-ink" /> : null}
           </button>
@@ -426,7 +442,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
         {tab === "chats" ? (
           <div className="pb-4">
             <div className="px-3 pt-1">
-              <label className="flex h-12 items-center gap-3 rounded-full bg-paper/10 px-4">
+              <label className={clsx("flex h-12 items-center gap-3 rounded-full px-4", pry ? "pry-search" : "bg-paper/10")}>
                 <Search className="size-5 shrink-0 text-paper/70" />
                 <input className="min-w-0 flex-1 bg-transparent text-[1.05rem] outline-none placeholder:text-paper/55" placeholder="Search chats" value={filter} onChange={(e) => setFilter(e.target.value)} />
                 {filter ? <button type="button" aria-label="Clear" onClick={() => setFilter("")}><X className="size-4 text-paper/60" /></button> : null}
@@ -450,8 +466,8 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
               <p className="p-4 text-sm text-rose">{chatError}</p>
             ) : sorted.length === 0 ? (
               <div className="grid place-items-center px-6 pt-16 text-center">
-                <div className="pop-in">
-                  <p className="float text-5xl">💬</p>
+                <div className="pop-in pry-empty">
+                  {pry ? <PryBlob kind="blue" style={{ "--bs": "130px" } as CSSProperties} /> : <p className="float text-5xl">💬</p>}
                   <p className="mt-3 font-display text-3xl font-bold">No chats yet</p>
                   <p className="mt-2 text-sm text-pretty text-paper/60">Dost ki ID search karo aur pehla message bhejo.</p>
                   <button type="button" onClick={() => setTab("find")} className="btn-hot tap mt-5 h-12 rounded-2xl px-6 font-display text-lg font-bold tracking-wide">FIND FRIENDS</button>
@@ -473,7 +489,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
             </div>
             {squads.length === 0 ? (
               <div className="pop-in mt-10 text-center">
-                <p className="float text-5xl">🛡️</p>
+                {pry ? <PryBlob kind="yellow" style={{ "--bs": "120px" } as CSSProperties} /> : <p className="float text-5xl">🛡️</p>}
                 <p className="mt-3 text-sm text-pretty text-paper/55">Abhi koi squad nahi. Naam do, dosto ko add karo, admin tum ho.</p>
               </div>
             ) : (
@@ -514,50 +530,50 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
       </div>
 
       </div>
-      <div className="relative w-0 lg:w-auto lg:min-w-0 lg:flex-1">
+      <div className={clsx("relative w-0 lg:w-auto lg:min-w-0 lg:flex-1", pry && "pry-ui")}>
         {activeId ? <Thread key={activeId} chatId={activeId} me={me} onBack={closeThread} onGroup={(id) => setGroupFor(id)} onProfile={setProfileFor} /> : (
           <div className="hidden h-full place-items-center text-center lg:grid"><div><p className="float text-6xl">💬</p><p className="mt-3 font-display text-3xl font-bold text-paper/70">IronRoses MSG</p><p className="mt-1 text-sm text-paper/45">Koi chat kholo</p></div></div>
         )}
       </div>
-      {newsOpen ? <NewsSheet me={me} isAdmin={isAdmin} news={news} onClose={() => setNewsOpen(false)} /> : null}
+      {newsOpen ? <Pry on={pry}><NewsSheet me={me} isAdmin={isAdmin} news={news} onClose={() => setNewsOpen(false)} /></Pry> : null}
       {adminOpen && isAdmin ? <Suspense fallback={null}><AdminPanel config={config} onClose={() => setAdminOpen(false)} /></Suspense> : null}
       {requestsOpen ? (
-        <Frame title="Requests" onClose={() => setRequestsOpen(false)} z={50}>
+        <Pry on={pry}><Frame title="Requests" onClose={() => setRequestsOpen(false)} z={50}>
           {requests.length === 0 ? <p className="pt-10 text-center text-paper/55">Koi request nahi.</p> : <ul className="space-y-2">{requests.map((r) => <RequestRow key={r.id} chat={r} me={me} onOpen={(id) => { setRequestsOpen(false); openChat(id); }} />)}</ul>}
-        </Frame>
+        </Frame></Pry>
       ) : null}
       {settingsOpen ? (
-        <Frame title="Edit profile" onClose={() => setSettingsOpen(false)} z={56}>
+        <Pry on={pry}><Frame title="Edit profile" onClose={() => setSettingsOpen(false)} z={56}>
           <Me me={me} isAdmin={isAdmin} onAdmin={() => setAdminOpen(true)} onPro={() => setProOpen(true)} onCloseFriends={() => setCloseOpen(true)} sound={sound} alerts={alerts} onAlerts={() => void enableAlerts()} onSound={(v) => { setSound(v); localStorage.setItem("pry-sound", v ? "1" : "0"); }} />
-        </Frame>
+        </Frame></Pry>
       ) : null}
       {menuOpen ? (
-        <Suspense fallback={null}><Settings me={me} isAdmin={isAdmin} sound={sound} alerts={alerts} onAlerts={() => void enableAlerts()} onSound={(v) => { setSound(v); localStorage.setItem("pry-sound", v ? "1" : "0"); }}
-          onAdmin={() => setAdminOpen(true)} onPro={() => setProOpen(true)} onCloseFriends={() => setCloseOpen(true)} onEdit={() => setSettingsOpen(true)} onClose={() => setMenuOpen(false)} /></Suspense>
+        <Pry on={pry}><Suspense fallback={null}><Settings me={me} isAdmin={isAdmin} sound={sound} alerts={alerts} onAlerts={() => void enableAlerts()} onSound={(v) => { setSound(v); localStorage.setItem("pry-sound", v ? "1" : "0"); }}
+          onAdmin={() => setAdminOpen(true)} onPro={() => setProOpen(true)} onCloseFriends={() => setCloseOpen(true)} onEdit={() => setSettingsOpen(true)} onClose={() => setMenuOpen(false)} /></Suspense></Pry>
       ) : null}
-      {noteFor === me.uid ? <NoteEditor me={me} current={notes[me.uid] ?? null} onClose={() => setNoteFor(null)} onChanged={() => setNoteTick((v) => v + 1)} /> : null}
-      {noteFor && noteFor !== me.uid && contactUsers[noteFor] && notes[noteFor] ? <NoteViewer me={me} owner={contactUsers[noteFor]} note={notes[noteFor]} onClose={() => setNoteFor(null)} /> : null}
+      {noteFor === me.uid ? <Pry on={pry}><NoteEditor me={me} current={notes[me.uid] ?? null} onClose={() => setNoteFor(null)} onChanged={() => setNoteTick((v) => v + 1)} /></Pry> : null}
+      {noteFor && noteFor !== me.uid && contactUsers[noteFor] && notes[noteFor] ? <Pry on={pry}><NoteViewer me={me} owner={contactUsers[noteFor]} note={notes[noteFor]} onClose={() => setNoteFor(null)} /></Pry> : null}
       {tubeOpen ? <YoutubeView apiKey={config.youtubeApiKey || ""} onClose={() => setTubeOpen(false)} /> : null}
-      {proOpen ? <ProSheet me={me} onClose={() => setProOpen(false)} /> : null}
-      {closeOpen ? <CloseFriendsSheet me={me} contacts={Object.values(contactUsers)} onClose={() => setCloseOpen(false)} /> : null}
-      {profileFor ? <ProfileSheet uid={profileFor} me={me} contactUids={contactUids} onClose={() => setProfileFor(null)} onMessage={(u) => void openProfileMessage(u)} onOpenProfile={setProfileFor} /> : null}
+      {proOpen ? <Pry on={pry}><ProSheet me={me} onClose={() => setProOpen(false)} /></Pry> : null}
+      {closeOpen ? <Pry on={pry}><CloseFriendsSheet me={me} contacts={Object.values(contactUsers)} onClose={() => setCloseOpen(false)} /></Pry> : null}
+      {profileFor ? <Pry on={pry}><ProfileSheet uid={profileFor} me={me} contactUids={contactUids} onClose={() => setProfileFor(null)} onMessage={(u) => void openProfileMessage(u)} onOpenProfile={setProfileFor} /></Pry> : null}
       {storyAt !== null && storyOwners.length ? <StoryViewer me={me} owners={storyOwners} start={Math.min(storyAt, storyOwners.length - 1)} onClose={() => setStoryAt(null)} onChanged={() => setStoryTick((v) => v + 1)} /> : null}
       {creatorOpen ? <StoryCreator me={me} contacts={Object.values(contactUsers)} onClose={() => setCreatorOpen(false)} onPublished={() => setStoryTick((v) => v + 1)} /> : null}
       <SpamGuard />
       {aiOpen ? <Suspense fallback={null}><AiChat uid={me.uid} name={me.displayName} onClose={() => setAiOpen(false)} /></Suspense> : null}
       {secretOpen ? <Suspense fallback={null}><Secret onClose={() => setSecretOpen(false)} /></Suspense> : null}
-      {groupFor ? <GroupSheet mode={groupFor} me={me} onClose={() => setGroupFor(null)} onOpen={(id) => { setTab("chats"); openChat(id); }} onLeft={() => { setGroupFor(null); setActiveId(null); }} /> : null}
-      {joinOpen ? <JoinSheet me={me} onClose={() => setJoinOpen(false)} onOpen={(id) => { setTab("chats"); openChat(id); }} /> : null}
+      {groupFor ? <Pry on={pry}><GroupSheet mode={groupFor} me={me} onClose={() => setGroupFor(null)} onOpen={(id) => { setTab("chats"); openChat(id); }} onLeft={() => { setGroupFor(null); setActiveId(null); }} /></Pry> : null}
+      {joinOpen ? <Pry on={pry}><JoinSheet me={me} onClose={() => setJoinOpen(false)} onOpen={(id) => { setTab("chats"); openChat(id); }} /></Pry> : null}
 
       {pingOpen ? (
-        <div className="sheet-up safe-top fixed inset-0 z-[45] flex flex-col bg-ink">
+        <Pry on={pry}><div className="sheet-up safe-top fixed inset-0 z-[45] flex flex-col bg-ink">
           <header className="flex h-16 items-center justify-between px-4">
             <h2 className="font-display text-3xl font-bold">Notifications</h2>
             <button type="button" className="tap grid size-11 place-items-center rounded-full" aria-label="Close" onClick={() => setPingOpen(false)}><X className="size-5" /></button>
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto px-4">
             {visibleChats.filter((c) => (c.unread?.[me.uid] ?? 0) > 0).length === 0 ? (
-              <div className="pop-in mt-16 text-center"><p className="float text-5xl">🔔</p><p className="mt-3 text-sm text-paper/55">Sab clear hai. Naya message aate hi yahan dikhega.</p></div>
+              <div className="pop-in mt-16 text-center">{pry ? <PryBlob kind="blue" style={{ "--bs": "110px" } as CSSProperties} /> : <p className="float text-5xl">🔔</p>}<p className="mt-3 text-sm text-paper/55">Sab clear hai. Naya message aate hi yahan dikhega.</p></div>
             ) : (
               <ul className="space-y-2">
                 {visibleChats.filter((c) => (c.unread?.[me.uid] ?? 0) > 0).map((c) => (
@@ -574,10 +590,10 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
               </ul>
             )}
           </div>
-        </div>
+        </div></Pry>
       ) : null}
 
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <Pry on={pry}><div className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         {notices.slice(0, 3).map((n) => (
           <button key={n.id} type="button" className="toast-in glass pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-2xl p-3 text-left shadow-[0_18px_50px_-10px_rgba(225,29,72,0.5)]" onClick={() => openChat(n.chatId)}>
             <span className="flex items-center gap-3">
@@ -591,7 +607,7 @@ export function Shell({ me, isAdmin, config, float = false }: { me: UserDoc; isA
             <span className="toast-bar grad absolute inset-x-0 bottom-0 h-0.5" />
           </button>
         ))}
-      </div>
+      </div></Pry>
     </div>
   );
 }

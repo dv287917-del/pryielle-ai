@@ -73,7 +73,7 @@ export function Settings({ me, sound, onSound, alerts, onAlerts, isAdmin, onAdmi
   const [stack, setStack] = useState<View[]>(["root"]);
   const view = stack[stack.length - 1];
   const [q, setQ] = useState("");
-  const [theme, setTheme] = useState(localStorage.getItem("pry-theme") ?? "haunted");
+  const [theme, setTheme] = useState(localStorage.getItem("pry-theme") ?? "pryielle");
   const [amoled, setAmoled] = useState(localStorage.getItem("pry-amoled") === "1");
   const [horror, setHorror] = useState(!sfx.isMuted());
   const [pin, setPinOn] = useState(hasPin());
