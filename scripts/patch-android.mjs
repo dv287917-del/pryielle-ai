@@ -66,7 +66,7 @@ for (const dir of fs.readdirSync("resources/icons")) {
 }
 const bg = `${res}/values/ic_launcher_background.xml`;
 fs.mkdirSync(path.dirname(bg), { recursive: true });
-fs.writeFileSync(bg, `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#07060D</color>\n</resources>\n`);
+fs.writeFileSync(bg, `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#3DA5FF</color>\n</resources>\n`);
 console.log("✅ Android project patched");
 
 // ---- floating window over other apps (native Java plugin + overlay service) ----

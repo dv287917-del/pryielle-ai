@@ -1,0 +1,66 @@
+/* ===== Sign In (Auth.tsx) — classes au-* : loading/home jaisa sky + glass theme ===== */
+.au-root { --B: min(58vw, 260px); position: relative; height: 100dvh; overflow: hidden; background: #fff; color: #111;
+  display: flex; flex-direction: column; align-items: center; padding-top: env(safe-area-inset-top, 0px); }
+.au-blob { position: absolute; z-index: 1; width: var(--B); height: var(--B); border-radius: 50%; pointer-events: none; filter: blur(2px);
+  animation: au-in 1.1s cubic-bezier(.3,1.5,.5,1) var(--in) both, au-bob var(--bt) ease-in-out var(--bd) infinite; }
+.au-blob.blue { left: calc(var(--B) * -.3); top: 48%; --in: .3s; --bt: 5.2s; --bd: -1s;
+  background: radial-gradient(circle at 60% 55%, #4fb3e8 0%, #6cc2ee 45%, #b9e1f7 68%, rgba(255,255,255,0) 76%); }
+.au-blob.pink { right: calc(var(--B) * -.34); top: 54%; --in: .45s; --bt: 5.8s; --bd: -2.4s;
+  background: radial-gradient(circle at 42% 52%, #e8479b 0%, #ef6bb0 45%, #f7b4d4 68%, rgba(255,255,255,0) 76%); }
+.au-blob.yellow { left: 50%; margin-left: calc(var(--B) * -.5); bottom: calc(var(--B) * -.3); --in: .6s; --bt: 4.6s; --bd: -.5s;
+  background: radial-gradient(circle at 50% 38%, #ffd34f 0%, #ffdc72 48%, #fff0b8 68%, rgba(255,255,255,0) 76%); }
+@keyframes au-in { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
+@keyframes au-bob { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(6px,-12px) scale(1.04); } 66% { transform: translate(-6px,-5px) scale(.98); } }
+
+.au-hero { position: relative; z-index: 2; flex: 1 1 auto; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 24px 6px; }
+.au-logo-wrap { position: relative; display: grid; place-items: center; animation: au-pop 1s cubic-bezier(.34,1.7,.64,1) .1s both, au-float 4.4s ease-in-out 1.2s infinite; }
+.au-logo-wrap::before { content: ""; position: absolute; inset: -22%; border-radius: 50%; z-index: -1;
+  background: radial-gradient(circle, rgba(79,179,232,.55), rgba(79,179,232,0) 68%); animation: au-pulse 3.2s ease-in-out infinite; }
+.au-logo { width: min(40vw, 168px); height: min(40vw, 168px); border-radius: 28%; object-fit: contain; display: block;
+  box-shadow: 0 18px 40px rgba(40,120,200,.38), 0 0 0 3px rgba(255,255,255,.85); }
+@keyframes au-pop { from { transform: scale(0) rotate(-30deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes au-float { 0%,100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+@keyframes au-pulse { 0%,100% { transform: scale(.94); opacity: .75; } 50% { transform: scale(1.08); opacity: 1; } }
+.au-name { margin: 22px 0 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
+  background: linear-gradient(90deg, #30303b, #8d8f9d); -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: au-rise .8s cubic-bezier(.2,.8,.2,1) .55s both; }
+.au-tag { margin: 8px 0 0; font-size: .82rem; font-weight: 600; letter-spacing: .08em; color: #9aa0ad; text-transform: uppercase;
+  animation: au-rise .8s cubic-bezier(.2,.8,.2,1) .7s both; }
+@keyframes au-rise { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* glass card */
+.au-card { position: relative; z-index: 3; box-sizing: border-box; width: calc(100% - 32px); max-width: 440px; margin-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  padding: 22px 20px 18px; border-radius: 30px; text-align: center; overflow: hidden;
+  background: linear-gradient(155deg, rgba(255,255,255,.62), rgba(255,255,255,.28));
+  border: 1px solid rgba(255,255,255,.9);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6); backdrop-filter: blur(22px) saturate(1.6);
+  box-shadow: 0 24px 60px rgba(60,120,190,.28), inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.4);
+  animation: au-card-in .9s cubic-bezier(.2,.9,.2,1) .5s both; }
+.au-card::before { content: ""; position: absolute; left: -30%; top: -60%; width: 90%; height: 120%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255,255,255,.55), rgba(255,255,255,0)); }
+@keyframes au-card-in { from { transform: translateY(70px); opacity: 0; } to { transform: none; opacity: 1; } }
+.au-h { position: relative; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -.01em; color: #151515; }
+.au-p { position: relative; margin: 6px 0 0; font-size: .9rem; line-height: 1.4; color: #5b6478; }
+.au-err { position: relative; margin: 12px 0 0; padding: 9px 12px; border-radius: 14px; font-size: .82rem; color: #c62828;
+  background: rgba(255,255,255,.65); border: 1px solid rgba(229,57,53,.25); animation: au-rise .3s both; }
+
+.au-btn { position: relative; overflow: hidden; width: 100%; height: 58px; margin-top: 18px; border: 0; border-radius: 999px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 12px; background: #151515; color: #fff; font: inherit; font-size: 1.05rem; font-weight: 600;
+  box-shadow: 0 14px 28px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.18); -webkit-tap-highlight-color: transparent; transition: transform .14s, opacity .2s; }
+.au-btn:active { transform: scale(.96); }
+.au-btn:disabled { opacity: .75; }
+.au-btn::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); animation: au-shine 3.6s ease-in-out 1.6s infinite; }
+@keyframes au-shine { 0% { left: -60%; } 40%,100% { left: 130%; } }
+.au-g { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #fff; flex: none; }
+.au-g svg { width: 18px; height: 18px; }
+.au-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff; animation: au-rot .7s linear infinite; }
+@keyframes au-rot { to { transform: rotate(360deg); } }
+.au-note { position: relative; margin: 14px 0 0; font-size: .7rem; line-height: 1.45; color: #6d7588; }
+
+@media (max-height: 680px) { .au-logo { width: min(30vw, 112px); height: min(30vw, 112px); } .au-name { margin-top: 12px; font-size: 1.7rem; } .au-card { padding: 16px 16px 14px; } .au-btn { height: 52px; margin-top: 12px; } }
+@media (prefers-color-scheme: dark) { .au-card { box-shadow: 0 24px 60px rgba(40,100,180,.35), inset 0 1px 0 rgba(255,255,255,.95); } }
+@media (prefers-reduced-motion: reduce) {
+  .au-blob, .au-logo-wrap, .au-logo-wrap::before, .au-btn::after { animation: none !important; }
+  .au-name, .au-tag, .au-card, .au-err { animation: none !important; }
+}

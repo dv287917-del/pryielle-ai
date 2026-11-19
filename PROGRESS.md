@@ -1,3 +1,21 @@
+# NEW WORK BATCHES (v3 UI round) — dekho `BATCHES.md` (user ke paas) ya neeche status
+
+- [x] **Batch 1 — App Logo (DONE)**: logo `48395.png` (cloud + eyes) lagaya, **bina crop** (sirf square padding).
+  - Changed: `src/assets/brand/logo.png` (512), `resources/icons/store-icon.png`, `resources/icons/mipmap-*/ic_launcher.png`, `ic_launcher_round.png`, `ic_launcher_foreground.png` (adaptive: logo 66% safe-zone), `scripts/patch-android.mjs` (sirf launcher background colour `#07060D` -> `#3DA5FF`, logo se match).
+  - Backup purane icons ka user ke paas nahi; git se wapas ho sakta hai.
+- [x] **Batch 2 — Sign In / Login UI (DONE)**: premium glass, loading screen (PryielleScreen) jaisa theme: sky + rays + grid, floating blobs, floating logo (glow), frosted glass card, black pill "Continue with Google" (G icon, shine, loading spinner). Sirf Google; Email OTP CANCEL. Purane IronRoses branding + 2 buttons hata ke 1 button.
+  - Changed: `src/components/Auth.tsx` (UI only; `googleSignIn()` logic wahi, same export), NEW `src/components/auth.css` (classes `au-*`; `pryielle.css` ke `wl2-grid/sky/rays` reuse). Status bar `#cfe8fb`.
+  - Tested: browser preview 390x844 aur 360x640 (build/npm test nahi hua). Reduced-motion support hai.
+- [ ] Batch 3 — Startup speed / lag fix (4-5 sec loading delay hatana)
+- [ ] Batch 4 — Screen Share core + Home entry + friends invite
+- [ ] Batch 5 — Screen Share controls (mic, screen on/off, profile logo, animation)
+- [ ] Batch 6 — Screen Share in-call chat + polish
+- [ ] Batch 7 — Final QA + PROGRESS.md
+
+Rule: sirf bola hua kaam karo, baaki file/code mat chedo.
+
+---
+
 # PROGRESS (mega update v2.4.0) — dusri ID / dusre session ke liye
 
 Is file ko padh ke wahin se aage badhao. Original wishlist `MEGA-UPDATE-WISHLIST.md` mein hai (17 features).
